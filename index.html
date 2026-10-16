@@ -78,7 +78,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .bb.on{background:var(--panel-hi);border-color:var(--gold)}
 .bb.poor small{color:var(--bad)}
 
-#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 168px);transform:translateX(-50%);background:var(--panel);border:1px solid var(--gold);color:var(--parch);padding:8px 14px;border-radius:6px;font-weight:700;pointer-events:none;opacity:0;transition:opacity .25s;max-width:calc(100% - 32px);text-align:center;box-sizing:border-box}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 214px);transform:translateX(-50%);background:var(--panel);border:1px solid var(--gold);color:var(--parch);padding:8px 14px;border-radius:6px;font-weight:700;pointer-events:none;opacity:0;transition:opacity .25s;max-width:calc(100% - 32px);text-align:center;box-sizing:border-box}
 #toast.show{opacity:1}
 #toast.danger{border-color:var(--bad)}
 #mini{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 92px);width:132px;height:68px;border:1px solid var(--line);border-radius:6px;background:var(--panel);touch-action:none;cursor:pointer}
@@ -107,6 +107,21 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .lordb span{color:#f2c94c}
 .lordb i{display:block;height:3px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden}
 .lordb i b{display:block;height:100%;width:100%;background:var(--ok)}
+.levels{display:flex;flex-direction:column;gap:6px;margin:0 0 18px}
+.lvl{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);border-radius:6px;padding:9px 12px;background:rgba(0,0,0,.25)}
+.lvl .n{font-family:var(--f-display);font-size:22px;color:var(--gold);text-align:center}
+.lvl b{display:block;font-size:15px}
+.lvl small{display:block;color:var(--muted);font-size:12px;line-height:1.3}
+.lvl .st{color:var(--gold);font-size:15px;letter-spacing:.08em;white-space:nowrap}
+.lvl .st i{font-style:normal;color:rgba(228,183,92,.25)}
+.lvl:disabled{opacity:.45}
+.lvl.next{border-color:var(--gold);background:var(--panel-hi)}
+details.how{margin:4px 0 18px}
+details.how summary{cursor:pointer;font-weight:800;color:var(--gold);padding:4px 0}
+.pulse{outline:2px solid var(--gold);outline-offset:2px;animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(228,183,92,.7)}50%{box-shadow:0 0 0 7px rgba(228,183,92,0)}}
+.quest.tut{border-color:var(--gold)}
+.quest .qh{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .row3{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .row3 .warn{margin-top:0}
 .fix{background:var(--panel-hi);border:1px solid var(--gold);color:var(--gold);border-radius:6px;padding:6px 12px;font-weight:700}
@@ -132,7 +147,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .card .big{background:var(--crimson);color:#fff;font-weight:800;font-size:17px;padding:12px 22px;border-radius:6px;border:1px solid #e0796f;letter-spacing:.02em}
 .card .stats{display:grid;grid-template-columns:1fr auto;gap:4px 16px;margin:14px 0 18px;font-variant-numeric:tabular-nums;font-size:15px}
 .card .stats dd{margin:0;font-weight:800;text-align:right}
-@media (prefers-reduced-motion:reduce){#toast{transition:none}#banner.show{animation-name:bannerFade}}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}.pulse{animation:none}#banner.show{animation-name:bannerFade}}
 @keyframes bannerFade{0%,85%{opacity:1}100%{opacity:0}}
 </style>
 
@@ -185,6 +200,7 @@ const KX=27, KY=19;                      // keep top-left tile
 const FIRE={x:KX+1.5, y:KY+4.6};          // campfire where idle peasants gather
 const DAY=20;                              // seconds per in-game day
 const MAX_WAVE=10;
+const MW=()=>S&&S.cfg?S.cfg.maxWave:MAX_WAVE;
 const idx=(i,j)=>j*N+i;
 const inb=(i,j)=>i>=0&&j>=0&&i<N&&j<N;
 const iso=(x,y)=>[(x-y)*HW,(x+y)*HH];
@@ -235,7 +251,25 @@ const DIFF=[
   {name:'Normal',desc:'Tantangan seimbang, persiapan 3:20', mul:1, first:200, hp:1},
   {name:'Sulit', desc:'Gelombang besar, musuh lebih tangguh', mul:1.35, first:160, hp:1.15},
 ];
-const SAVE_KEY='benteng-gurun-save-v1',BEST_KEY='benteng-gurun-best-v1';
+const SAVE_KEY='benteng-gurun-save-v1',BEST_KEY='benteng-gurun-best-v1',CAMP_KEY='benteng-gurun-camp-v1';
+const RULES={knight:3,ram:4,cat:6,ladder:3,north:5};
+const LEVELS=[
+  {name:'Oasis Pertama',brief:'Tutorial terpandu. Gelombang pertama menunggu sampai kamu siap.',tutorial:true,maxWave:5,mul:0.6,hp:0.85,first:240,scoreMul:0.8,
+   start:{gold:200,wood:120,stone:60,food:60},rules:{knight:4,ram:5,cat:99,ladder:3,north:99},gen:{}},
+  {name:'Sungai Kering',brief:'Palem langka, batu melimpah. Hemat kayu dan andalkan pasar.',maxWave:6,mul:0.85,hp:0.95,first:220,scoreMul:1,
+   start:{gold:170,wood:60,stone:50,food:50},rules:{},gen:{treeP:0.07,grassW:2.6,rockT:0.62}},
+  {name:'Tiga Penyeberangan',brief:'Musuh juga menyerang dari utara mulai gelombang 3.',maxWave:8,mul:1,hp:1,first:200,scoreMul:1.1,
+   start:{gold:150,wood:70,stone:30,food:50},rules:{north:3},gen:{riverAmp:1.4}},
+  {name:'Lembah Batu',brief:'Sedikit tanah subur, ketapel datang sejak gelombang 4. Beli makanan di pasar.',maxWave:8,mul:1,hp:1,first:200,scoreMul:1.2,
+   start:{gold:180,wood:80,stone:40,food:120},rules:{cat:4,ram:3},gen:{grassW:2.2,rockT:0.6,treeP:0.25}},
+  {name:'Pengepungan Besar',brief:'Dua belas gelombang. Tangga sejak gelombang 2 dan serangan dua arah.',maxWave:12,mul:1.05,hp:1.05,first:200,scoreMul:1.5,
+   start:{gold:200,wood:100,stone:80,food:70},rules:{ladder:2,north:4,cat:5},gen:{}},
+];
+function freeCfg(d){const D=DIFF[d];return {mode:'free',diff:d,name:D.name,maxWave:MAX_WAVE,mul:D.mul,hp:D.hp,first:D.first,scoreMul:[0.75,1,1.5][d],start:{gold:150,wood:70,stone:30,food:50},rules:{...RULES},gen:{}};}
+function campCfg(i){const L=LEVELS[i];return {mode:'camp',level:i,diff:1,name:L.name,maxWave:L.maxWave,mul:L.mul,hp:L.hp,first:L.first,scoreMul:L.scoreMul,start:{...L.start},rules:{...RULES,...L.rules},gen:{...L.gen},tutorial:!!L.tutorial};}
+function cfgLabel(){return S.cfg.mode==='camp'?`Misi ${S.cfg.level+1}: ${S.cfg.name}`:S.cfg.name;}
+function loadCamp(){try{const o=JSON.parse(localStorage.getItem(CAMP_KEY));if(o&&o.unlocked)return o;}catch(e){}return {unlocked:1,stars:{}};}
+function saveCamp(o){try{localStorage.setItem(CAMP_KEY,JSON.stringify(o));}catch(e){}}
 const UPG={
   walls: {name:'Tembok Tebal',   desc:'HP tembok dan gerbang +40%',               cost:[{stone:40},{stone:90}]},
   towers:{name:'Menara Pemanah', desc:'Menara +1 jangkauan, +3 kerusakan, HP +30%',cost:[{stone:50},{stone:100,gold:40}]},
@@ -257,19 +291,21 @@ function blob(map,cx,cy,r,t,only){
     if(d<=r&&(!only||only.includes(map[idx(i,j)])))map[idx(i,j)]=t;
   }
 }
-function genMap(seed){
+function genMap(seed,gen){
+  gen=gen||{};
   const r=mulberry32(seed);
   const n1=makeNoise(r,6),n2=makeNoise(r,4),n3=makeNoise(r,5);
   const map=new Array(N*N).fill(T_SAND),tree=new Array(N*N).fill(0);
   const p1=r()*6,p2=r()*6;
-  const rc=j=>12.5+3*Math.sin(j*0.2+p1)+1.8*Math.sin(j*0.083+p2);
+  const amp=gen.riverAmp??1;
+  const rc=j=>12.5+3*amp*Math.sin(j*0.2+p1)+1.8*amp*Math.sin(j*0.083+p2);
   const fords=[7,21,35].map(f=>f+Math.floor(r()*3)-1);
   for(let j=0;j<N;j++)for(let i=0;i<N;i++){
     const k=idx(i,j),d=i+.5-rc(j+.5),w=1.45+0.45*n2(i,j);
     if(Math.abs(d)<w){map[k]=fords.some(f=>Math.abs(j-f)<=1)?T_FORD:T_WATER;continue;}
-    const g=4.2+n1(i,j)*5-(d<0?1.2:0);
+    const g=(gen.grassW??4.2)+n1(i,j)*(gen.grassW!=null?gen.grassW+0.8:5)-(d<0?1.2:0);
     if(Math.abs(d)<g)map[k]=T_GRASS;
-    else if(n3(i,j)>0.72&&Math.abs(d)>6)map[k]=T_ROCK;
+    else if(n3(i,j)>(gen.rockT??0.72)&&Math.abs(d)>6)map[k]=T_ROCK;
   }
   blob(map,22.5,27.5,3.6,T_GRASS,[T_SAND,T_ROCK]);
   blob(map,22.5,27.5,1.25,T_WATER,[T_GRASS]);
@@ -280,8 +316,8 @@ function genMap(seed){
   for(let k=0;k<N*N;k++){
     const i=k%N,j=(k/N)|0;
     if(i>=KX-2&&i<=KX+5&&j>=KY-2&&j<=KY+6)continue;
-    if(map[k]===T_GRASS&&r()<0.3)tree[k]=10+Math.floor(r()*8);
-    else if(map[k]===T_SAND&&r()<0.012)tree[k]=8+Math.floor(r()*6);
+    if(map[k]===T_GRASS&&r()<(gen.treeP??0.3))tree[k]=10+Math.floor(r()*8);
+    else if(map[k]===T_SAND&&r()<(gen.treeP??0.3)*0.04)tree[k]=8+Math.floor(r()*6);
   }
   return {map,tree};
 }
@@ -301,12 +337,13 @@ function lordInKeep(u,dt){
   u.hp=Math.min(u.maxhp,u.hp+14*dt);
   if(u.hp>=u.maxhp*0.85&&!u.stay){u.inKeep=false;u.retreat=false;u.x=KX+1.5;u.y=KY+3.5;u.hold={x:u.x,y:u.y};u.order=null;floatText(u.x,u.y,'Sang Penguasa kembali','#f2c94c');}
 }
-function newGame(seed,diff){
-  const g=genMap(seed);
+function newGame(seed,cfg){
+  if(typeof cfg!=='object')cfg=freeCfg(cfg??1);
+  const g=genMap(seed,cfg.gen);
   S={seed,t:0,map:g.map,tree:g.tree,occ:new Array(N*N).fill(0),buildings:[],units:[],proj:[],fx:[],nid:1,
-    res:{gold:150,wood:70,stone:30,food:50},peasants:8,pop:60,tax:1,dayT:0,day:1,wave:0,waveT:200,spawnQ:[],
-    kills:0,lost:0,over:0,foodOk:true,warned:false,lastTaxGold:0,lastFood:0,diff:diff??1,trained:0,quest:0,next:null,traps:[],up:{walls:0,towers:0,bows:0,armor:0},pits:0,ladders:[],pushed:0,lordId:0};
-  S.waveT=DIFF[S.diff].first;S.next=planWave(1);
+    res:{...cfg.start},peasants:8,pop:60,tax:1,dayT:0,day:1,wave:0,waveT:200,spawnQ:[],
+    kills:0,lost:0,over:0,foodOk:true,warned:false,lastTaxGold:0,lastFood:0,diff:cfg.diff??1,cfg,tut:cfg.tutorial?0:-1,flags:{},trained:0,quest:0,next:null,traps:[],up:{walls:0,towers:0,bows:0,armor:0},pits:0,ladders:[],pushed:0,lordId:0};
+  S.waveT=cfg.first;S.next=planWave(1);if(cfg.tutorial)S.quest=99;
   addBuilding('keep',KX,KY,true);
   const start=[['spear',KX-1.2,KY+3.8],['spear',KX-0.6,KY+4.5],['spear',KX+3.8,KY+3.6],['spear',KX+4.4,KY+4.3],['archer',KX+0.4,KY+5.4],['archer',KX+2.8,KY+5.4]];
   for(const [t,x,y] of start)spawnUnit(t,0,x,y);
@@ -319,9 +356,9 @@ function serialize(){return JSON.stringify(S);}
 function deserialize(s){
   S=typeof s==='string'?JSON.parse(s):s;
   S.diff??=1;S.trained??=0;S.quest??=0;S.traps??=[];S.up??={walls:0,towers:0,bows:0,armor:0};S.pits??=0;if(S.waveT==null)S.waveT=1e9;
-  S.ladders??=[];S.pushed??=0;
+  S.ladders??=[];S.pushed??=0;S.cfg??=freeCfg(S.diff);S.tut??=-1;S.flags??={};
   reindex();fieldDirty=true;fieldCache.clear();
-  if(!S.next&&S.wave<MAX_WAVE)S.next=planWave(S.wave+1);
+  if(!S.next&&S.wave<MW())S.next=planWave(S.wave+1);
   if(!S.over&&!S.units.some(u=>u.type==='lord'))S.lordId=spawnUnit('lord',0,KX+1.5,KY+3.7).id;
 }
 function saveGame(){if(!S||S.over||!started)return;try{localStorage.setItem(SAVE_KEY,serialize());}catch(e){}}
@@ -474,7 +511,7 @@ function nearestFree(i,j,team){
 // ================= units =================
 function spawnUnit(type,team,x,y){
   const t=UT[type];
-  const hp=Math.round(t.hp*(team===1?DIFF[S.diff].hp:1));
+  const hp=Math.round(t.hp*(team===1?S.cfg.hp:1));
   const u={id:S.nid++,type,team,x,y,hp,maxhp:hp,lastHit:0,cd:Math.random()*0.5,tgt:0,auto:true,btgt:0,order:null,hold:{x,y},walk:0,face:1,atk:0,scan:0,chase:null};
   S.units.push(u);return u;
 }
@@ -799,12 +836,13 @@ function fountainBonus(){return Math.min(4,countBuilt('fountain'));}
 
 // ================= waves =================
 function planWave(n){
-  const m=DIFF[S.diff].mul,c={
+  const m=S.cfg.mul,r=S.cfg.rules,c={
     spear:Math.round((3+2*n)*m),archer:Math.round(Math.floor(n*1.4)*m),
-    knight:n>=3?Math.round((n-2)*0.75*m):0,ram:n>=4?Math.max(1,Math.round(Math.floor((n-2)/2)*m)):0,
-    catapult:n>=6?Math.max(1,Math.round(Math.floor((n-4)/2)*m)):0,
-    ladder:n>=3?Math.max(1,Math.round((1+Math.floor(n/3))*m)):0};
-  return {n,c,split:n>=5&&n%2===1,cj:6+Math.floor(Math.random()*32)};
+    knight:n>=r.knight?Math.round((n-2)*0.75*m):0,
+    ram:n>=r.ram?Math.max(1,Math.round(Math.floor((n-r.ram+2)/2)*m)):0,
+    catapult:n>=r.cat?Math.max(1,Math.round(Math.floor((n-r.cat+2)/2)*m)):0,
+    ladder:n>=r.ladder?Math.max(1,Math.round((1+Math.floor(n/3))*m)):0};
+  return {n,c,split:n>=r.north&&(n-r.north)%2===0,cj:6+Math.floor(Math.random()*32)};
 }
 function waveDir(w){return w.split?'Barat dan Utara':'Barat';}
 function startWave(){
@@ -819,19 +857,21 @@ function startWave(){
   });
   toast(`Gelombang ${w.n}: ${comp.length} musuh dari ${waveDir(w).toUpperCase()}!`,true);
   showBanner(`Gelombang ${w.n}`,`Musuh menyerang dari ${waveDir(w)}`);sfx('horn');
-  S.next=S.wave<MAX_WAVE?planWave(S.wave+1):null;
+  S.next=S.wave<MW()?planWave(S.wave+1):null;
 }
 function updateWaves(dt){
-  if(S.wave<MAX_WAVE){
-    S.waveT-=dt;
-    if(S.waveT<=20&&!S.warned){S.warned=true;toast(`Pengintai: pasukan musuh terlihat. ${Math.ceil(S.waveT)} detik lagi!`,true);}
-    if(S.waveT<=0){S.wave++;startWave();S.warned=false;S.waveT=S.wave>=MAX_WAVE?1e9:(S.wave<6?150:130);}
+  if(S.wave<MW()){
+    let hold=tutHold();
+    if(hold&&(S.holdT=(S.holdT||0)+dt)>360){S.flags.called=1;hold=false;S.waveT=Math.min(S.waveT,60);toast('Pengintai: musuh tidak mau menunggu lagi. Gelombang pertama tiba dalam 1 menit!',true);}
+    if(!hold)S.waveT-=dt;
+    if(!hold&&S.waveT<=20&&!S.warned){S.warned=true;toast(`Pengintai: pasukan musuh terlihat. ${Math.ceil(S.waveT)} detik lagi!`,true);}
+    if(S.waveT<=0){S.wave++;startWave();S.warned=false;S.waveT=S.wave>=MW()?1e9:(S.wave<6?150:130);}
   }
   while(S.spawnQ.length&&S.spawnQ[0].at<=S.t){
     const q=S.spawnQ.shift();
     const u=spawnUnit(q.type,1,q.i+.5,q.j+.5);u.x+=(Math.random()-.5)*.6;u.y+=(Math.random()-.5)*.6;
   }
-  if(S.wave>=MAX_WAVE&&!S.spawnQ.length&&!S.units.some(u=>u.team===1))endGame(true);
+  if(S.wave>=MW()&&!S.spawnQ.length&&!S.units.some(u=>u.team===1))endGame(true);
 }
 
 // ================= main update =================
@@ -1395,6 +1435,10 @@ function render(tm){
       ctx.fillStyle='#ffd35a';ctx.beginPath();ctx.moveTo(px-2.5,py-2);ctx.quadraticCurveTo(px,py-9*fl,px+2.5,py-2);ctx.fill();}
     else if(o.k===6){ctx.globalAlpha=0.6;drawBuilding(ctx,{type:ghost.type,i:ghost.i,j:ghost.j,w:BT[ghost.type].w,h:BT[ghost.type].h,hp:1,maxhp:1,built:1},tm,true);ctx.globalAlpha=1;}
   }
+  {const ta=tutTarget();if(ta){const p=iso(ta[0],ta[1]),k=reduceMotion?0.5:(tm*1.2)%1;
+    ctx.strokeStyle=`rgba(228,183,92,${1-k})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.ellipse(p[0],p[1],16+k*26,8+k*13,0,0,7);ctx.stroke();
+    const by=p[1]-46-(reduceMotion?0:Math.sin(tm*4)*5);ctx.fillStyle='#e4b75c';ctx.strokeStyle='#3a2508';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(p[0],by+18);ctx.lineTo(p[0]-9,by+5);ctx.lineTo(p[0]-4,by+5);ctx.lineTo(p[0]-4,by-6);ctx.lineTo(p[0]+4,by-6);ctx.lineTo(p[0]+4,by+5);ctx.lineTo(p[0]+9,by+5);ctx.closePath();ctx.fill();ctx.stroke();}}
   // ladders sit on the overlay layer so a breach on a far-side wall stays readable
   for(const L of objsPre)drawLadder(ctx,L,tm);objsPre.length=0;
   if(ghost&&ghost.line){ctx.globalAlpha=0.6;for(const g of ghost.line)drawBuilding(ctx,{type:ghost.type,i:g.i,j:g.j,w:1,h:1,hp:1,maxhp:1,built:1},tm,true);ctx.globalAlpha=1;}
@@ -1586,8 +1630,42 @@ const QUESTS=[
   {t:'Pukul mundur gelombang ketiga',check:()=>S.wave>=3&&!S.spawnQ.length&&!S.units.some(u=>u.team===1),rw:{gold:60}},
   {t:'Jatuhkan tangga musuh dengan Tombak di atas tembok',check:()=>S.pushed>=1,rw:{gold:40}},
 ];
+function nearestTile(pred){let best=null,bd=1e9;for(let k=0;k<N*N;k++){if(!pred(k))continue;const i=k%N,j=(k/N)|0,d=Math.hypot(i+.5-(KX+1.5),j+.5-(KY+1.5));if(d<bd){bd=d;best=[i+.5,j+.5];}}return best;}
+function grassSpot(){return nearestTile(k=>{const i=k%N,j=(k/N)|0;if(i<1||j<1||i>N-4||j>N-4)return false;let g=0;for(let y=j;y<j+3;y++)for(let x=i;x<i+3;x++){const q=idx(x,y);if(S.map[q]===T_GRASS&&!S.occ[q])g++;else if(S.map[q]===T_WATER||S.map[q]===T_FORD||S.occ[q])return false;}return g>=7;});}
+const builtAny=t=>S.buildings.some(b=>b.type===t);
+const TUT=[
+  {t:'Bangun Penebang di dekat pohon palem',h:'Ketuk Penebang di bawah, lalu ketuk peta di dekat tanda emas. Penebang memberi kayu.',hl:'.bb[data-t="wood"]',at:()=>nearestTile(k=>S.tree[k]>0),check:()=>builtAny('wood'),hold:1},
+  {t:'Bangun Kebun Kurma di tanah hijau',h:'Rakyat butuh makanan setiap hari. Kebun hanya bisa di oasis hijau.',hl:'.bb[data-t="farm"]',at:grassSpot,check:()=>builtAny('farm'),hold:1},
+  {t:'Bangun Rumah',h:'Setiap Rumah menambah 8 batas rakyat. Rakyat menganggur bisa dilatih jadi prajurit.',hl:'.bb[data-t="house"]',at:()=>[KX+6.5,KY+1.5],check:()=>builtAny('house'),hold:1},
+  {t:'Bangun Tambang Batu di batu abu-abu',h:'Batu dipakai untuk tembok, menara, dan perbaikan.',hl:'.bb[data-t="quarry"]',at:()=>nearestTile(k=>S.map[k]===T_ROCK&&!S.occ[k]),check:()=>builtAny('quarry'),hold:1},
+  {t:'Bangun Barak',h:'Barak melatih rakyat menganggur menjadi pasukan.',hl:'.bb[data-t="barracks"]',at:()=>[KX+6.5,KY+5.5],check:()=>builtAny('barracks'),hold:1},
+  {t:'Ketuk Barak, lalu latih 2 Pemanah',h:'Pemanah menembak dari jauh. Setiap prajurit butuh emas, kayu, dan 1 rakyat menganggur.',at:()=>{const b=S.buildings.find(x=>x.type==='barracks');return b?[b.i+1.5,b.j+1.5]:null;},check:()=>S.trained>=2,prog:()=>`${Math.min(2,S.trained)}/2`,hold:1},
+  {t:'Bangun 6 petak Tembok di sisi barat',h:'Pilih Tembok, lalu seret satu garis di peta. Musuh datang dari barat.',hl:'.bb[data-t="wall"]',at:()=>[KX-3.5,KY+1.5],check:()=>S.buildings.filter(b=>b.type==='wall').length>=6,prog:()=>`${Math.min(6,S.buildings.filter(b=>b.type==='wall').length)}/6`,hold:1},
+  {t:'Tekan "Pemanah ke tembok"',h:'Dari atas tembok, pemanah menembak lebih jauh dan aman dari tombak musuh.',hl:'#wallBtn',check:()=>S.units.some(u=>u.team===0&&u.type==='archer'&&(elevAt(u.x,u.y)||(u.order&&elevAt(u.order.x,u.order.y)))),hold:1},
+  {t:'Siap! Ketuk penghitung gelombang',h:'Di sana kamu melihat isi gelombang berikutnya. Tekan "Datangkan sekarang" saat siap.',hl:'#wave',check:()=>S.wave>=1},
+  {t:'Kalahkan 3 musuh',h:'Ketuk prajuritmu, lalu ketuk musuh biru untuk menyerang. Ketuk tanah untuk bergerak.',check:()=>S.kills>=3,prog:()=>`${Math.min(3,S.kills)}/3`},
+  {t:'Ketuk tombol Penguasa',h:'Pasukan di dekat Sang Penguasa 20% lebih kuat. Jika ia gugur, kamu kalah.',hl:'#lordBtn',check:()=>S.flags.lord},
+  {t:'Ketuk Benteng Utama',h:'Di sana kamu memperbaiki bangunan dan membeli peningkatan.',at:()=>[KX+1.5,KY+1.5],check:()=>S.flags.keep},
+  {t:'Taruh 1 Tombak di atas tembok',h:'Gelombang 3 membawa tangga. Pilih Tombak lalu ketuk tembok: tombak di atas tembok menjatuhkan tangga.',at:()=>[KX-3.5,KY+1.5],check:()=>S.pushed>0||S.units.some(u=>u.team===0&&u.type==='spear'&&elevAt(u.x,u.y))},
+  {t:'Bertahan sampai gelombang terakhir',h:'Kamu sudah menguasai dasarnya. Selamat bertahan!',check:()=>false},
+];
+function tutHold(){return S.tut>=0&&TUT[S.tut]&&TUT[S.tut].hold&&!S.flags.called;}
+function tutTarget(){if(!S||S.tut<0||!started||S.over)return null;const st=TUT[S.tut];return st&&st.at?st.at():null;}
+let tutHL=null;
+function setTutHL(sel){if(tutHL===sel)return;for(const e of document.querySelectorAll('.pulse'))e.classList.remove('pulse');tutHL=sel;if(sel){const e=document.querySelector(sel);if(e){e.classList.add('pulse');if(e.closest('.build'))e.scrollIntoView({block:'nearest',inline:'center'});}}}
+function tutTick(el){
+  let st=TUT[S.tut];
+  while(st&&st.check()){S.tut++;sfx('coin');st=TUT[S.tut];if(st)toast('Bagus! '+st.t);}
+  if(!st){S.tut=-1;setTutHL(null);el.hidden=true;return;}
+  setTutHL(st.hl||null);el.classList.add('tut');
+  const html=`<span class="qk">Tutorial ${S.tut+1} dari ${TUT.length}</span><b>${st.t}</b>${st.prog?` <small>${st.prog()}</small>`:''}<span class="qh">${st.h}</span>`;
+  if(el.dataset.h!==html){el.innerHTML=html;el.dataset.h=html;}el.hidden=false;
+}
 function questTick(){
-  const el=document.getElementById('quest');const q=QUESTS[S.quest];
+  const el=document.getElementById('quest');
+  if(S&&S.tut>=0&&started&&!S.over){tutTick(el);return;}
+  el.classList.remove('tut');if(tutHL)setTutHL(null);
+  const q=QUESTS[S.quest];
   if(!q||!started||S.over){el.hidden=true;return;}
   if(q.check()){for(const k in q.rw)S.res[k]+=q.rw[k];toast(`Tujuan tercapai! Hadiah: ${costText(q.rw)}`);sfx('coin');S.quest++;questTick();return;}
   const html=`<span class="qk">Tujuan ${S.quest+1} dari ${QUESTS.length}</span><b>${q.t}</b> <small>${q.prog?q.prog()+' · ':''}hadiah ${costText(q.rw)}</small>`;
@@ -1629,7 +1707,7 @@ let panelKind=null;
 const panel=$('ctx');
 function closePanel(){panelKind=null;panel.hidden=true;panel.innerHTML='';}
 function openBuildingPanel(b){
-  panelKind='b';selB=b.id;const t=BT[b.type];
+  panelKind='b';selB=b.id;if(b.type==='keep')S.flags.keep=1;const t=BT[b.type];
   let h=`<div class="ph"><img alt="" src="${ICONS[b.type]}"><div><h3>${t.name}</h3><p data-v="status">${t.desc}</p></div><button class="x" data-act="close" aria-label="Tutup">×</button></div><div class="hpbar"><i data-v="hp"></i></div>`;
   if(b.type==='barracks'){
     h+='<div class="acts">';
@@ -1701,7 +1779,7 @@ function updatePanel(){
   if(panelKind==='w'){
     const active=S.units.some(u=>u.team===1)||S.spawnQ.length,w=S.next;
     if(!w){setV('wt','Gelombang terakhir');setV('ws','Kalahkan semua musuh yang tersisa untuk menang.');}
-    else{setV('wt',`Gelombang ${w.n} dari ${MAX_WAVE}`);setV('ws',active?`Menyusul setelah gelombang ini · dari ${waveDir(w)}`:`Tiba dalam ${fmt(S.waveT)} · dari ${waveDir(w)}`);}
+    else{setV('wt',`Gelombang ${w.n} dari ${MW()}`);setV('ws',active?`Menyusul setelah gelombang ini · dari ${waveDir(w)}`:tutHold()?`Menunggu sampai kamu siap · dari ${waveDir(w)}`:`Tiba dalam ${fmt(S.waveT)} · dari ${waveDir(w)}`);}
     const el=panel.querySelector('[data-v="wc"]'),html=w?Object.entries(w.c).filter(([,n])=>n).map(([t,n])=>`<span>${n} ${UT[t].name}</span>`).join(''):'';
     if(el.dataset.h!==html){el.innerHTML=html;el.dataset.h=html;}
     setV('wn',!w?'':w.c.ladder&&(w.n===3||!w.c.catapult)&&!w.c.ram?'Pembawa Tangga memasang tangga di tembok. Pemanah bisa menembak mereka di jalan; Tombak di atas tembok menjatuhkan tangga yang terpasang.':w.c.catapult?'Ketapel menembak bangunan dari 7 petak. Menara (7,5 petak) dan pemanah di tembok bisa menjangkaunya, atau kirim Ksatria keluar.':w.c.ram?'Pendobrak hanya menyerang bangunan dan tahan panah. Hadang dengan Tombak dan Ksatria.':w.split?'Sebagian musuh datang dari utara, sisi yang tidak terlindung sungai.':'Musuh menyeberang lewat titik dangkal sungai. Jaga titik itu dengan tembok, menara, dan pemanah.');
@@ -1730,7 +1808,7 @@ panel.addEventListener('click',e=>{
   if(a==='upg'){if(!buyUpgrade(el.dataset.k))toast('Bahan tidak cukup.');updatePanel();return;}
   if(a==='demolish'){const b=bmap.get(selB);if(!b)return;const c=BT[b.type].cost||{};for(const k in c)S.res[k]+=Math.floor(c[k]/2);removeBuilding(b,false);closePanel();return;}
   if(a==='lordkeep'){const L=S.units.find(u=>u.id===S.lordId);if(L&&!L.inKeep){L.stay=true;lordToKeep(L);clearSel();closePanel();toast('Sang Penguasa masuk ke benteng. Ketuk tombol Penguasa untuk mengeluarkannya.');}return;}
-  if(a==='call'){if(S.wave<MAX_WAVE){S.waveT=0.01;S.warned=true;}closePanel();return;}
+  if(a==='call'){if(S.wave<MW()){S.waveT=0;S.warned=true;S.flags.called=1;}closePanel();return;}
   if(a==='tax'){S.tax=+el.dataset.t;updatePanel();toast(`Pajak: ${TAX[S.tax].name}`);return;}
 });
 
@@ -1742,8 +1820,8 @@ function updateHUD(){
   const pv=$('popv');pv.textContent=S.pop;pv.className=S.pop>=50?'good':S.pop<40?'bad':'';
   const en=S.units.filter(u=>u.team===1).length;
   const wv=$('wave');
-  if(en||S.spawnQ.length){$('waveT').textContent=`Gelombang ${S.wave}/${MAX_WAVE}`;$('waveS').textContent=`${en+S.spawnQ.length} musuh`;wv.classList.add('alarm');}
-  else if(S.wave<MAX_WAVE){$('waveT').textContent=`Gelombang ${S.wave+1}/${MAX_WAVE}`;$('waveS').textContent=fmt(S.waveT);wv.classList.toggle('alarm',S.waveT<=20);}
+  if(en||S.spawnQ.length){$('waveT').textContent=`Gelombang ${S.wave}/${MW()}`;$('waveS').textContent=`${en+S.spawnQ.length} musuh`;wv.classList.add('alarm');}
+  else if(S.wave<MW()){$('waveT').textContent=`Gelombang ${S.wave+1}/${MW()}`;$('waveS').textContent=tutHold()?'menunggumu':fmt(S.waveT);wv.classList.toggle('alarm',S.waveT<=20);}
   for(const el of document.querySelectorAll('.bb'))el.classList.toggle('poor',!costOk(BT[el.dataset.t].cost));
   const bt=innerHeight-$('bottom').getBoundingClientRect().top+8+'px';
   if(panel.style.bottom!==bt){panel.style.bottom=bt;$('hint').style.bottom=bt;}
@@ -1755,7 +1833,7 @@ function updateHUD(){
 function clearSel(){for(const u of S.units)u.sel=false;selUnits.clear();}
 function selectUnits(list,add){if(!add)clearSel();for(const u of list){u.sel=true;selUnits.add(u.id);}if(selUnits.size){selB=0;openUnitsPanel();}else if(panelKind==='u')closePanel();}
 
-$('lordBtn').addEventListener('click',()=>{setBuild(null);const L=S.units.find(u=>u.id===S.lordId);if(!L)return;
+$('lordBtn').addEventListener('click',()=>{setBuild(null);S.flags.lord=1;const L=S.units.find(u=>u.id===S.lordId);if(!L)return;
   if(L.inKeep){if(L.stay){L.stay=false;toast(L.hp>=L.maxhp*0.85?'Sang Penguasa keluar dari benteng.':`Sang Penguasa akan keluar saat pulih (${Math.round(100*L.hp/L.maxhp)}%).`);}else toast(`Sang Penguasa memulihkan diri di dalam benteng (${Math.round(100*L.hp/L.maxhp)}%).`);centerOn(KX+1.5,KY+2.5);return;}
   selectUnits([L]);centerOn(L.x,L.y);});
 $('armyBtn').addEventListener('click',()=>{setBuild(null);const a=S.units.filter(u=>u.team===0&&u.type!=='lord');selectUnits(a);if(!a.length)toast('Belum ada pasukan. Latih di Barak.');});
@@ -1784,15 +1862,16 @@ function togglePause(){if(!started||S.over)return;if(paused)resumeGame();else op
 function resumeGame(){paused=false;$('overlay').hidden=true;$('pauseBtn').textContent='Jeda';$('pauseBtn').classList.remove('on');}
 function openPauseMenu(){
   paused=true;$('pauseBtn').textContent='Lanjut';$('pauseBtn').classList.add('on');saveGame();
-  $('card').innerHTML=`<p class="kick">Dijeda · hari ke-${S.day} · ${DIFF[S.diff].name}</p><h1>Rehat sejenak</h1>
-  <div class="menu"><button class="big" id="resumeBtn">Lanjutkan</button><button class="ghost" id="soundBtn"></button><button class="ghost" id="helpBtn">Cara bermain</button><button class="ghost" id="restartBtn">Mulai ulang</button></div>
+  $('card').innerHTML=`<p class="kick">Dijeda · hari ke-${S.day} · ${cfgLabel()}</p><h1>Rehat sejenak</h1>
+  <div class="menu"><button class="big" id="resumeBtn">Lanjutkan</button><button class="ghost" id="soundBtn"></button><button class="ghost" id="helpBtn">Cara bermain</button><button class="ghost" id="restartBtn">Mulai ulang</button><button class="ghost" id="menuBtn2">Simpan dan ke menu</button></div>
   <div id="helpBox" hidden>${HELP}</div>`;
   $('toast').classList.remove('show');$('overlay').hidden=false;setMuted(muted);
   $('resumeBtn').addEventListener('click',resumeGame);
   $('soundBtn').addEventListener('click',()=>{audioInit();setMuted(!muted);});
   $('helpBtn').addEventListener('click',()=>{$('helpBox').hidden=!$('helpBox').hidden;});
   $('restartBtn').addEventListener('click',e=>{const b=e.currentTarget;if(!b.dataset.armed){b.dataset.armed='1';b.textContent='Ketuk lagi untuk mulai ulang (progres hilang)';return;}
-    clearSave();pickDiff=S.diff;newGame((Math.random()*1e9)|0,pickDiff);renderTerrain();renderMiniBg();closePanel();setBuild(null);started=false;paused=true;$('pauseBtn').textContent='Jeda';$('pauseBtn').classList.remove('on');showStart();});
+    const rc=S.cfg;startWith(rc.mode==='camp'?campCfg(rc.level):freeCfg(rc.diff));});
+  $('menuBtn2').addEventListener('click',()=>{saveGame();toMenu();});
 }
 const HELP=`<ol>
     <li><b>Penebang</b> dekat pohon palem, <b>Tambang Batu</b> di batu abu-abu, <b>Kebun Kurma</b> di tanah hijau. <b>Rumah</b> menambah rakyat.</li>
@@ -1942,28 +2021,37 @@ function loadBest(){try{return JSON.parse(localStorage.getItem(BEST_KEY))||{};}c
 function saveBest(d,r){const b=loadBest();const o=b[d]||{score:0,stars:0};const rec=r.score>o.score;b[d]={score:Math.max(o.score,r.score),stars:Math.max(o.stars,r.stars)};try{localStorage.setItem(BEST_KEY,JSON.stringify(b));}catch(e){}return rec;}
 function finalScore(win){
   const keep=S.buildings.find(b=>b.type==='keep'),kp=keep?Math.max(0,keep.hp/keep.maxhp):0;
-  const base=S.wave*100+S.kills*5+(win?500+Math.round(kp*500):0),score=Math.round(base*[0.75,1,1.5][S.diff]);
+  const base=S.wave*100+S.kills*5+(win?500+Math.round(kp*500):0),score=Math.round(base*(S.cfg.scoreMul??1));
   let stars=0;if(win){stars=1;if(kp>=0.5)stars=2;if(kp>=0.8&&S.lost<=Math.max(5,S.trained*0.3))stars=3;}
   return {score,stars,kp};
 }
 const starStr=n=>'★'.repeat(n)+`<i>${'★'.repeat(3-n)}</i>`;
 let pickDiff=1;
+function startWith(cfg){
+  audioInit();clearSave();newGame((Math.random()*1e9)|0,cfg);renderTerrain();renderMiniBg();closePanel();setBuild(null);
+  umap.clear();for(const u of S.units)umap.set(u.id,u);assignWorkers();
+  $('overlay').hidden=true;started=true;paused=false;$('pauseBtn').textContent='Jeda';$('pauseBtn').classList.remove('on');
+  if(cfg.mode==='camp')showBanner(`Misi ${cfg.level+1}`,cfg.name);
+  toast(cfg.tutorial?'Ikuti petunjuk di kiri atas. Gelombang pertama menunggu sampai kamu siap.':`Gelombang pertama tiba dalam ${fmt(S.waveT)}. Bangun ekonomimu!`);
+  questTick();
+}
 function showStart(){
-  const sv=loadSave(),best=loadBest();
-  $('card').innerHTML=`<p class="kick">Strategi benteng · 10 gelombang</p><h1>Benteng Gurun</h1>
-  <p class="lede">Sebuah benteng batu berdiri di tepi sungai oasis. Pasukan berbendera biru datang dari barat, menyeberangi tiga titik dangkal sungai. Bangun ekonomi, dirikan tembok, dan pertahankan Benteng Utama sampai gelombang kesepuluh.</p>
-  ${HELP}
-  <p class="kick">Tingkat kesulitan</p>
+  const sv=loadSave(),best=loadBest(),camp=loadCamp();
+  const next=Math.min(LEVELS.length-1,camp.unlocked-1);
+  $('card').innerHTML=`<p class="kick">Strategi benteng di gurun</p><h1>Benteng Gurun</h1>
+  <p class="lede">Sebuah benteng batu di tepi sungai oasis. Pasukan berbendera biru menyeberangi titik dangkal sungai dengan tangga, pendobrak, dan ketapel. Bangun ekonomi, dirikan tembok, dan lindungi Sang Penguasa.</p>
+  ${sv?`<div class="row" style="margin-bottom:18px"><button class="big" id="contBtn">Lanjutkan permainan</button><small style="color:var(--muted)">${sv.cfg&&sv.cfg.mode==='camp'?`Misi ${sv.cfg.level+1}: ${sv.cfg.name}`:DIFF[sv.diff??1].name} · gelombang ${sv.wave}/${sv.cfg?sv.cfg.maxWave:MAX_WAVE} · hari ${sv.day}</small></div>`:''}
+  <p class="kick">Kampanye</p>
+  <div class="levels" id="lvlList">${LEVELS.map((L,i)=>{const lock=i+1>camp.unlocked,st=camp.stars[i]||0;
+    return `<button class="lvl${i===next&&!st?' next':''}" data-l="${i}" ${lock?'disabled':''}><span class="n">${i+1}</span><span><b>${L.name}</b><small>${lock?'Terkunci: menangkan misi sebelumnya':`${L.maxWave} gelombang · ${L.brief}`}</small></span><span class="st">${lock?'':'★'.repeat(st)+`<i>${'★'.repeat(3-st)}</i>`}</span></button>`;}).join('')}</div>
+  <p class="kick">Pertempuran bebas · 10 gelombang</p>
   <div class="diff" id="diffRow">${DIFF.map((d,k)=>{const r=best[k];return `<button data-d="${k}" class="${k===pickDiff?'sel':''}"><b>${d.name}</b><small>${d.desc}</small>${r&&r.score?`<em>Rekor ${'★'.repeat(r.stars)||'–'} · ${r.score.toLocaleString('id-ID')}</em>`:''}</button>`;}).join('')}</div>
-  <div class="row"><button class="big" id="startBtn">Mulai bertahan</button>${sv?`<button class="ghost" id="contBtn">Lanjutkan<small>Gelombang ${sv.wave}/${MAX_WAVE} · hari ${sv.day} · ${DIFF[sv.diff??1].name}</small></button>`:''}</div>`;
+  <div class="row"><button class="ghost" id="startBtn">Mulai pertempuran bebas</button></div>
+  <details class="how"><summary>Cara bermain</summary>${HELP}</details>`;
   $('overlay').hidden=false;
+  $('lvlList').addEventListener('click',e=>{const b=e.target.closest('[data-l]');if(!b||b.disabled)return;startWith(campCfg(+b.dataset.l));});
   $('diffRow').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;pickDiff=+b.dataset.d;for(const x of $('diffRow').children)x.classList.toggle('sel',x===b);});
-  $('startBtn').addEventListener('click',()=>{
-    audioInit();clearSave();
-    S.diff=pickDiff;S.waveT=DIFF[pickDiff].first;S.next=planWave(1);
-    $('overlay').hidden=true;started=true;paused=false;$('pauseBtn').textContent='Jeda';
-    toast(`Gelombang pertama tiba dalam ${fmt(S.waveT)}. Bangun ekonomimu!`);questTick();
-  });
+  $('startBtn').addEventListener('click',()=>startWith(freeCfg(pickDiff)));
   if(sv)$('contBtn').addEventListener('click',()=>{
     audioInit();deserialize(sv);renderTerrain();renderMiniBg();closePanel();setBuild(null);selUnits.clear();
     umap.clear();for(const u of S.units){u.sel=false;umap.set(u.id,u);}assignWorkers();
@@ -1971,18 +2059,24 @@ function showStart(){
     toast(`Selamat datang kembali. Hari ke-${S.day}.`);questTick();
   });
 }
+function toMenu(){newGame((Math.random()*1e9)|0,freeCfg(pickDiff));renderTerrain();renderMiniBg();closePanel();setBuild(null);started=false;paused=true;setTutHL(null);showStart();}
 function endGame(win,why){
-  if(S.over)return;S.over=win?1:2;started=true;clearSave();sfx(win?'win':'lose');
-  const sc=finalScore(win),rec=saveBest(S.diff,sc);
-  if(win)showBanner('Kemenangan','Sepuluh gelombang dipukul mundur');
+  if(S.over)return;S.over=win?1:2;started=true;clearSave();sfx(win?'win':'lose');setTutHL(null);
+  const sc=finalScore(win),camp=S.cfg.mode==='camp';let rec=false,nextLvl=-1;
+  if(camp){const c=loadCamp(),i=S.cfg.level;if(win){rec=sc.stars>(c.stars[i]||0);c.stars[i]=Math.max(c.stars[i]||0,sc.stars);c.unlocked=Math.max(c.unlocked,i+2);saveCamp(c);if(i+1<LEVELS.length)nextLvl=i+1;}}
+  else rec=saveBest(S.diff,sc);
+  if(win)showBanner(camp?'Misi selesai':'Kemenangan',`${MW()} gelombang dipukul mundur`);
   $('quest').hidden=true;
-  $('card').innerHTML=`<p class="kick">${win?'Kemenangan':'Kekalahan'} · ${DIFF[S.diff].name} · hari ke-${S.day}</p><h1>${win?'Benteng bertahan':why==='lord'?'Sang Penguasa gugur':'Benteng runtuh'}</h1>
-  <p class="lede">${win?'Sepuluh gelombang telah dipukul mundur. Bendera merahmu masih berkibar di atas menara.':why==='lord'?`Sang Penguasa tewas pada gelombang ${S.wave}. Tanpa pemimpin, benteng menyerah. Jaga ia di belakang barisan saat HP-nya rendah.`:`Benteng Utama jatuh pada gelombang ${S.wave}. Tembok berlapis, menara di titik dangkal sungai, dan pemanah di atas tembok bisa mengubah segalanya.`}</p>
+  $('card').innerHTML=`<p class="kick">${win?'Kemenangan':'Kekalahan'} · ${cfgLabel()} · hari ke-${S.day}</p><h1>${win?'Benteng bertahan':why==='lord'?'Sang Penguasa gugur':'Benteng runtuh'}</h1>
+  <p class="lede">${win?(nextLvl>=0?`Gelombang terakhir dipukul mundur. Misi berikutnya terbuka: <b>${LEVELS[nextLvl].name}</b>. ${LEVELS[nextLvl].brief}`:camp?'Kampanye tamat. Kamu telah mempertahankan gurun dari pengepungan terbesar.':'Sepuluh gelombang telah dipukul mundur. Bendera merahmu masih berkibar di atas menara.'):why==='lord'?`Sang Penguasa tewas pada gelombang ${S.wave}. Tanpa pemimpin, benteng menyerah. Jaga ia di belakang barisan saat HP-nya rendah.`:`Benteng Utama jatuh pada gelombang ${S.wave}. Tembok berlapis, menara di titik dangkal sungai, dan tombak di atas tembok bisa mengubah segalanya.`}</p>
   ${win?`<p class="stars">${starStr(sc.stars)}</p>`:''}${rec&&(win||S.wave>=3)?'<p class="record">Rekor baru!</p>':''}
-  <dl class="stats"><dt>Skor</dt><dd>${sc.score.toLocaleString('id-ID')}</dd><dt>Gelombang</dt><dd>${S.wave}/${MAX_WAVE}</dd><dt>Musuh tumbang</dt><dd>${S.kills}</dd><dt>Pasukan gugur</dt><dd>${S.lost}</dd><dt>Prajurit dilatih</dt><dd>${S.trained}</dd><dt>Rakyat</dt><dd>${S.peasants}</dd></dl>
-  <button class="big" id="againBtn">Main lagi</button>`;
+  <dl class="stats"><dt>Skor</dt><dd>${sc.score.toLocaleString('id-ID')}</dd><dt>Gelombang</dt><dd>${S.wave}/${MW()}</dd><dt>Musuh tumbang</dt><dd>${S.kills}</dd><dt>Pasukan gugur</dt><dd>${S.lost}</dd><dt>Prajurit dilatih</dt><dd>${S.trained}</dd><dt>Rakyat</dt><dd>${S.peasants}</dd></dl>
+  <div class="row">${nextLvl>=0?'<button class="big" id="nextBtn">Misi berikutnya</button>':''}${!win?'<button class="big" id="retryBtn">Coba lagi</button>':''}<button class="${nextLvl>=0||!win?'ghost':'big'}" id="menuBtn">Menu utama</button></div>`;
   setTimeout(()=>{$('toast').classList.remove('show');$('overlay').hidden=false;},win?3300:900);
-  $('againBtn').addEventListener('click',()=>{newGame((Math.random()*1e9)|0,pickDiff);renderTerrain();renderMiniBg();closePanel();setBuild(null);started=false;paused=true;showStart();});
+  const cfg=S.cfg;
+  if(nextLvl>=0)$('nextBtn').addEventListener('click',()=>startWith(campCfg(nextLvl)));
+  if(!win)$('retryBtn').addEventListener('click',()=>startWith(cfg.mode==='camp'?campCfg(cfg.level):freeCfg(cfg.diff)));
+  $('menuBtn').addEventListener('click',toMenu);
 }
 
 // ================= loop =================
@@ -2015,6 +2109,6 @@ if(window.claude?.hot){try{window.claude.hot.snapshot(()=>({save:serialize(),cam
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
 addEventListener('pagehide',saveGame);
-window.__game={get S(){return S;},centerOn,cam,get ladderMap(){return ladderMap;},spawnUnit,buyUpgrade,repairAll,archersToWalls,canPlacePit,placeOne,finalScore,get efield(){return efield;},nextStep,BT,elevAt,orderMove,maxPop,update,newGame,canPlace,addBuilding,startWave,setStarted(v){started=v;paused=!v;$('overlay').hidden=v;}};
+window.__game={get S(){return S;},LEVELS,campCfg,startWith,questTick,centerOn,cam,get ladderMap(){return ladderMap;},spawnUnit,buyUpgrade,repairAll,archersToWalls,canPlacePit,placeOne,finalScore,get efield(){return efield;},nextStep,BT,elevAt,orderMove,maxPop,update,newGame,canPlace,addBuilding,startWave,setStarted(v){started=v;paused=!v;$('overlay').hidden=v;}};
 })();
 </script>

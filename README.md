@@ -4,6 +4,15 @@ Game strategi benteng isometrik di browser, terinspirasi *Stronghold Crusader*. 
 
 Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 
+## Mode
+- **Kampanye (5 misi)**, terbuka berurutan, dengan bintang per misi:
+  1. *Oasis Pertama*: tutorial terpandu 14 langkah. Tombol yang harus diketuk berdenyut, panah emas menunjuk lokasi di peta, dan gelombang pertama menunggu sampai kamu siap (paling lama 6 menit).
+  2. *Sungai Kering*: palem langka, batu melimpah.
+  3. *Tiga Penyeberangan*: serangan dari utara mulai gelombang 3.
+  4. *Lembah Batu*: sedikit tanah subur, ketapel sejak gelombang 4.
+  5. *Pengepungan Besar*: 12 gelombang, tangga sejak gelombang 2.
+- **Pertempuran bebas**: 10 gelombang dengan tingkat Mudah/Normal/Sulit dan rekor skor.
+
 ## Cara bermain
 - **Penebang** dekat pohon palem → kayu. **Tambang Batu** di atas batu abu-abu → batu. **Kebun Kurma** di tanah hijau → makanan.
 - **Rumah** menambah batas rakyat. Popularitas ≥ 50 menarik rakyat baru; atur pajak lewat tombol rakyat/hati di atas.
