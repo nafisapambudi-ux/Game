@@ -9,7 +9,10 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 - **Rumah** menambah batas rakyat. Popularitas ≥ 50 menarik rakyat baru; atur pajak lewat tombol rakyat/hati di atas.
 - **Barak** melatih rakyat menganggur menjadi Tombak, Pemanah, atau Ksatria.
 - **Tembok** (seret untuk satu baris), **Gerbang** (pasukanmu bisa lewat), **Menara** (memanah otomatis).
-- Musuh datang dari barat lewat tiga titik dangkal sungai; mulai gelombang 5 juga dari utara, membawa pendobrak.
+- **Pemanah di atas tembok/menara**: jangkauan +2 (menara +3), panah musuh berkurang 40%, dan tombak musuh tidak bisa menjangkau.
+- **Air Mancur** menambah popularitas, jadi pajak bisa dinaikkan.
+- Musuh datang dari barat lewat tiga titik dangkal sungai. Mulai gelombang 4 ada pendobrak, gelombang 5 juga dari utara, dan gelombang 6 ada ketapel yang menembak bangunan dari jauh.
+- Tiga tingkat kesulitan, daftar tujuan berhadiah untuk pemula, simpan otomatis tiap hari (tombol *Lanjutkan*), minimap, efek suara sintetis.
 
 ## Kontrol
 | Aksi | HP | Desktop |
@@ -18,4 +21,5 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 | Zoom | cubit | roda mouse |
 | Pilih pasukan | ketuk prajurit, "Semua pasukan", atau "Pilih kotak" | klik, atau seret kotak |
 | Gerak / serang | ketuk tanah / ketuk musuh | klik kiri atau kanan |
+| Pindah cepat | ketuk peta kecil / penunjuk musuh | sama |
 | Jeda | tombol Jeda | Spasi |
