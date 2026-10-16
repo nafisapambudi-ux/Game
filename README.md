@@ -30,6 +30,7 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 - Skor dan bintang (1–3) per tingkat kesulitan, rekor tersimpan di perangkat. Menu jeda: suara, cara bermain, mulai ulang.
 - Musik latar generatif (petikan ala oud di atas dengung, tabuhan rebana saat pertempuran), bisa dimatikan terpisah dari efek suara di menu jeda.
 - Kartu tujuan/tutorial bisa dilipat dengan mengetuknya.
+- Menu jeda: opsi **Grafik: hemat baterai** (kanvas resolusi 1×) untuk HP yang lebih lemah. Pasukan, tembok, dan bangunan digambar dari cache sprite, jadi biaya JavaScript per frame tetap rendah.
 - Tiga tingkat kesulitan, daftar tujuan berhadiah untuk pemula, simpan otomatis tiap hari (tombol *Lanjutkan*), minimap, efek suara sintetis.
 
 ## Kontrol
