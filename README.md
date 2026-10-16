@@ -12,6 +12,8 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 - **Pemanah di atas tembok/menara**: jangkauan +2 (menara +3), panah musuh berkurang 40%, dan tombak musuh tidak bisa menjangkau.
 - **Air Mancur** menambah popularitas, jadi pajak bisa dinaikkan.
 - Musuh datang dari barat lewat tiga titik dangkal sungai. Mulai gelombang 4 ada pendobrak, gelombang 5 juga dari utara, dan gelombang 6 ada ketapel yang menembak bangunan dari jauh.
+- **Sang Penguasa**: pahlawanmu (600 HP). Pasukan dalam 3,5 petak darinya memberi kerusakan +20%. Jika ia gugur, kamu kalah. Di bawah 35% HP ia berlindung di dalam Benteng Utama, pulih, lalu keluar lagi; bisa juga disuruh masuk lewat panel unit.
+- **Tangga pengepung** (mulai gelombang 3): Pembawa Tangga memasang tangga di tembok terdekat, lalu musuh memanjat masuk. Pemanah bisa menembak mereka di jalan; Tombak di atas tembok bertarung di tangga dan otomatis mendorongnya jatuh.
 - **Jebakan** (seret untuk memasang) tersembunyi dari musuh. **Gerbang** bisa ditaruh di atas tembok.
 - Ketuk **Benteng Utama** untuk 4 peningkatan (tembok, menara, busur, zirah) dan memperbaiki semua bangunan. Bangunan rusak bisa diperbaiki dengan batu, kecuali saat musuh dekat.
 - Prajurit dilatih dengan emas + kayu. Palem tumbuh kembali perlahan di oasis.
@@ -27,6 +29,7 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 | Gerak / serang | ketuk tanah / ketuk musuh | klik kiri atau kanan |
 | Pindah cepat | ketuk peta kecil / penunjuk musuh | sama |
 | Pemanah ke tembok | tombol | F |
-| Semua pasukan / ke benteng | tombol / peta kecil | Q / H |
+| Sang Penguasa | tombol Penguasa | L |
+| Semua pasukan / ke benteng | tombol Pasukan / peta kecil | Q / H |
 | Kecepatan | tombol 1× | 1, 2, 3 |
 | Jeda / menu | tombol Jeda | Spasi, Esc |

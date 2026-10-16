@@ -103,6 +103,10 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .wcomp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .note:empty,.wcomp:empty{display:none}
 .acts.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lordb{display:flex;flex-direction:column;align-items:stretch;gap:2px;padding-bottom:4px;border-color:#a8873e}
+.lordb span{color:#f2c94c}
+.lordb i{display:block;height:3px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden}
+.lordb i b{display:block;height:100%;width:100%;background:var(--ok)}
 .row3{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .row3 .warn{margin-top:0}
 .fix{background:var(--panel-hi);border:1px solid var(--gold);color:var(--gold);border-radius:6px;padding:6px 12px;font-weight:700}
@@ -159,9 +163,10 @@ button:disabled{opacity:.42;cursor:not-allowed}
 
 <div id="bottom" class="hud">
   <div class="tools">
-    <button class="tbtn" id="armyBtn">Semua pasukan</button>
-    <button class="tbtn" id="boxBtn">Pilih kotak</button>
-    <button class="tbtn" id="wallBtn">Pemanah ke tembok</button>
+    <button class="tbtn lordb" id="lordBtn" title="Pilih Sang Penguasa"><span>Penguasa</span><i><b id="lordHp"></b></i></button>
+    <button class="tbtn" id="armyBtn" title="Pilih semua pasukan kecuali Sang Penguasa">Pasukan</button>
+    <button class="tbtn" id="boxBtn" title="Seret untuk memilih pasukan">Kotak</button>
+    <button class="tbtn" id="wallBtn" title="Kirim pemanah ke tembok dan menara">Pemanah ke tembok</button>
   </div>
   <div class="build" id="build"></div>
 </div>
@@ -219,6 +224,8 @@ const UT={
   archer:{name:'Pemanah',   hp:34, dmg:7,  range:5.5,  speed:1.6, cd:1.6, cost:9,  wood:5,  bdmg:2, ranged:1},
   knight:{name:'Ksatria',   hp:170,dmg:17, range:0.95, speed:2.6, cd:1.1, cost:32, wood:8,  bdmg:6},
   ram:   {name:'Pendobrak', hp:320,dmg:0,  range:0.9,  speed:0.6, cd:2.4, bdmg:70, siege:1},
+  ladder:{name:'Pembawa Tangga',hp:45,dmg:0, range:0.9,  speed:1.6, cd:1.0, bdmg:0, siege:1, ladder:1},
+  lord:  {name:'Sang Penguasa',hp:600,dmg:22, range:1.0,  speed:1.9, cd:1.0, cost:0, wood:0, bdmg:10},
   catapult:{name:'Ketapel',  hp:110,dmg:0,  range:7,    speed:0.55,cd:4.5, bdmg:45, siege:1, artillery:1},
 };
 const ELEV={wall:32,gate:40,tower:74};
@@ -285,16 +292,25 @@ let bmap=new Map(), umap=new Map(), fieldCache=new Map(), efield=null, fieldDirt
 const cam={x:0,y:0,z:1};
 let selUnits=new Set(), selB=0, buildType=null, paused=true, speed=1, boxMode=false, started=false;
 
-function reindex(){bmap.clear();for(const b of S.buildings)bmap.set(b.id,b);}
+let ladderMap=new Map();
+function reindex(){bmap.clear();for(const b of S.buildings)bmap.set(b.id,b);reindexLadders();}
+function reindexLadders(){ladderMap.clear();for(const L of S.ladders||[])ladderMap.set(L.w,L);}
+function lordUnit(){const u=umap.get(S.lordId);return u&&!u.inKeep?u:null;}
+function lordToKeep(u){u.retreat=true;u.tgt=0;const fr=nearestFree(KX+1,KY+3,0);if(fr)u.order={k:idx(fr[0],fr[1]),x:KX+1.5,y:KY+3.4};}
+function lordInKeep(u,dt){
+  u.hp=Math.min(u.maxhp,u.hp+14*dt);
+  if(u.hp>=u.maxhp*0.85&&!u.stay){u.inKeep=false;u.retreat=false;u.x=KX+1.5;u.y=KY+3.5;u.hold={x:u.x,y:u.y};u.order=null;floatText(u.x,u.y,'Sang Penguasa kembali','#f2c94c');}
+}
 function newGame(seed,diff){
   const g=genMap(seed);
   S={seed,t:0,map:g.map,tree:g.tree,occ:new Array(N*N).fill(0),buildings:[],units:[],proj:[],fx:[],nid:1,
     res:{gold:150,wood:70,stone:30,food:50},peasants:8,pop:60,tax:1,dayT:0,day:1,wave:0,waveT:200,spawnQ:[],
-    kills:0,lost:0,over:0,foodOk:true,warned:false,lastTaxGold:0,lastFood:0,diff:diff??1,trained:0,quest:0,next:null,traps:[],up:{walls:0,towers:0,bows:0,armor:0},pits:0};
+    kills:0,lost:0,over:0,foodOk:true,warned:false,lastTaxGold:0,lastFood:0,diff:diff??1,trained:0,quest:0,next:null,traps:[],up:{walls:0,towers:0,bows:0,armor:0},pits:0,ladders:[],pushed:0,lordId:0};
   S.waveT=DIFF[S.diff].first;S.next=planWave(1);
   addBuilding('keep',KX,KY,true);
   const start=[['spear',KX-1.2,KY+3.8],['spear',KX-0.6,KY+4.5],['spear',KX+3.8,KY+3.6],['spear',KX+4.4,KY+4.3],['archer',KX+0.4,KY+5.4],['archer',KX+2.8,KY+5.4]];
   for(const [t,x,y] of start)spawnUnit(t,0,x,y);
+  S.lordId=spawnUnit('lord',0,KX+1.5,KY+3.7).id;
   selUnits.clear();selB=0;buildType=null;
   fieldDirty=true;fieldCache.clear();
   centerOn(KX+1.5,KY+2.5);
@@ -303,8 +319,10 @@ function serialize(){return JSON.stringify(S);}
 function deserialize(s){
   S=typeof s==='string'?JSON.parse(s):s;
   S.diff??=1;S.trained??=0;S.quest??=0;S.traps??=[];S.up??={walls:0,towers:0,bows:0,armor:0};S.pits??=0;if(S.waveT==null)S.waveT=1e9;
+  S.ladders??=[];S.pushed??=0;
   reindex();fieldDirty=true;fieldCache.clear();
   if(!S.next&&S.wave<MAX_WAVE)S.next=planWave(S.wave+1);
+  if(!S.over&&!S.units.some(u=>u.type==='lord'))S.lordId=spawnUnit('lord',0,KX+1.5,KY+3.7).id;
 }
 function saveGame(){if(!S||S.over||!started)return;try{localStorage.setItem(SAVE_KEY,serialize());}catch(e){}}
 function loadSave(){try{const t=localStorage.getItem(SAVE_KEY);if(!t)return null;const o=JSON.parse(t);return o&&Array.isArray(o.map)&&!o.over?o:null;}catch(e){return null;}}
@@ -348,6 +366,7 @@ function addBuilding(type,i,j,instant){
 function removeBuilding(b,destroyed){
   S.buildings=S.buildings.filter(x=>x!==b);bmap.delete(b.id);
   for(let y=b.j;y<b.j+b.h;y++)for(let x=b.i;x<b.i+b.w;x++)S.occ[idx(x,y)]=0;
+  if(S.ladders.length){S.ladders=S.ladders.filter(L=>S.occ[L.w]);reindexLadders();}
   fieldDirty=true;fieldCache.clear();
   if(selB===b.id){selB=0;closePanel();}
   if(ELEV[b.type])for(const u of S.units)if(u.x>=b.i&&u.x<b.i+b.w&&u.y>=b.j&&u.y<b.j+b.h){u.hp-=destroyed?12:0;u.hold={x:u.x,y:u.y};}
@@ -384,7 +403,7 @@ function hard(i,j,team){
   if(!inb(i,j))return true;const k=idx(i,j);if(S.map[k]===T_WATER)return true;
   const bid=S.occ[k];if(!bid)return false;
   if(team===0){const b=bmap.get(bid);return !(b&&b.built>=1&&ELEV[b.type]);}
-  return true;
+  return !ladderMap.has(k);
 }
 function dijkstra(goals,cost,team){
   const f=new Float64Array(N*N).fill(Infinity),h=[];
@@ -405,8 +424,18 @@ function dijkstra(goals,cost,team){
 function enemyCost(k){
   const m=S.map[k];if(m===T_WATER)return Infinity;
   const bid=S.occ[k];
-  if(bid){const b=bmap.get(bid);if(b&&b.type!=='keep')return 1+b.hp/18;}
+  if(bid){if(ladderMap.has(k))return 2.5;const b=bmap.get(bid);if(b&&b.type!=='keep')return 1+b.hp/18;}
   return m===T_FORD?2.5:1;
+}
+function enemyMoveCost(k){
+  const m=S.map[k];if(m===T_WATER)return Infinity;
+  if(S.occ[k])return ladderMap.has(k)?2.5:Infinity;
+  return m===T_FORD?2.5:1;
+}
+function getEField(k){
+  const key=100000+k;let f=fieldCache.get(key);
+  if(!f){f=dijkstra([k],enemyMoveCost,1);fieldCache.set(key,f);if(fieldCache.size>80)fieldCache.delete(fieldCache.keys().next().value);}
+  return f;
 }
 function playerCost(k){
   const m=S.map[k];if(m===T_WATER)return Infinity;
@@ -482,8 +511,10 @@ function faceTo(u,x,y){const s=(x-u.x)-(y-u.y);if(Math.abs(s)>0.01)u.face=s>0?1:
 function attackUnit(u,t){
   const ut=UT[u.type];faceTo(u,t.x,t.y);
   if(u.cd>0)return;u.cd=ut.cd*(0.9+Math.random()*0.2);u.atk=0.25;u.lastAtk=S.t;
-  if(ut.ranged)shoot(u.x,u.y,16+elevAt(u.x,u.y),t.id,ut.dmg+(u.team===0&&u.type==='archer'?2*S.up.bows:0),u.team,u.id);
-  else{damageUnit(t,ut.dmg*(0.85+Math.random()*0.3),u,false);sfx('hit',u.x,u.y);}
+  let dmg=ut.dmg+(u.team===0&&u.type==='archer'?2*S.up.bows:0);
+  if(u.team===0&&u.type!=='lord'){const L=lordUnit();if(L&&Math.hypot(L.x-u.x,L.y-u.y)<3.5)dmg*=1.2;}
+  if(ut.ranged)shoot(u.x,u.y,16+elevAt(u.x,u.y),t.id,dmg,u.team,u.id);
+  else{damageUnit(t,dmg*(0.85+Math.random()*0.3),u,false);sfx('hit',u.x,u.y);}
 }
 function attackBuilding(u,b){
   const ut=UT[u.type];faceTo(u,b.i+b.w/2,b.j+b.h/2);
@@ -492,12 +523,14 @@ function attackBuilding(u,b){
   if(ut.siege)S.fx.push({k:'dust',x:u.x,y:u.y,t:0,life:0.6});
 }
 function damageUnit(t,dmg,src,ranged){
+  if(t.inKeep)return;
   if(t.type==='knight'&&ranged)dmg*=0.55;
   if(t.type==='ram')dmg*=ranged?0.25:1;
   if(t.type==='catapult'&&ranged)dmg*=0.5;
-  if(t.team===0&&(t.type==='spear'||t.type==='knight'))dmg*=1-0.15*S.up.armor;
+  if(t.team===0&&(t.type==='spear'||t.type==='knight'||t.type==='lord'))dmg*=1-0.15*S.up.armor;
   if(ranged&&elevAt(t.x,t.y))dmg*=0.6;
   t.hp-=dmg;t.lastHit=S.t;
+  if(t.id===S.lordId&&t.hp>0&&t.hp<t.maxhp*0.35&&S.t-(S.lordWarn||0)>20){S.lordWarn=S.t;toast('Sang Penguasa terluka parah! Tarik mundur ke benteng.',true);}
   particles(t.x,t.y,10+elevAt(t.x,t.y),2,UT[t.type].siege?'#7a5430':'#9b1c12',1.2);
   if(src&&src.hp>0&&t.team!==src.team&&!t.tgt&&!t.order&&!UT[t.type].siege){t.tgt=src.id;t.auto=true;}
 }
@@ -515,8 +548,42 @@ function shoot(x,y,z,tid,dmg,team,src){
   S.proj.push({x,y,z0:z,sx:x,sy:y,tx:x,ty:y,t:0,dur:0,tid,dmg,team,src,init:false});sfx('arrow',x,y);
 }
 
+function placeLadder(u,L){
+  S.ladders.push({w:L.w,f:L.f,hp:70});reindexLadders();fieldDirty=true;fieldCache.clear();
+  u.hp=0;u.fled=1;sfx('build',u.x,u.y);
+  floatText(L.w%N+.5,((L.w/N)|0)+.5,'tangga!','#9fb4ff');
+  if(!S.ladderWarned){S.ladderWarned=true;toast('Musuh memasang tangga di tembok! Taruh Tombak di atas tembok untuk menjatuhkannya.',true);}
+}
+function removeLadder(L,pushed){
+  S.ladders=S.ladders.filter(x=>x!==L);reindexLadders();fieldDirty=true;fieldCache.clear();
+  const wi=L.w%N+.5,wj=((L.w/N)|0)+.5;
+  if(pushed){S.pushed++;floatText(wi,wj,'Tangga jatuh!','#f1d79a');S.fx.push({k:'dust',x:L.f%N+.5,y:((L.f/N)|0)+.5,t:0,life:0.8});sfx('thud',wi,wj);
+    for(const e of S.units)if(e.team===1&&(e.x|0)===L.w%N&&(e.y|0)===((L.w/N)|0))damageUnit(e,20,null,false);}
+}
+function ladderAI(u,dt){
+  let L=u.lt;
+  if(L){const b=bmap.get(S.occ[L.w]);if(!b||b.type!=='wall'||ladderMap.has(L.w))L=u.lt=null;}
+  if(!L&&(u.scan-=dt)<=0){
+    u.scan=1.2;
+    // walls reachable on foot from here (walls block), nearest by walking distance
+    const here=dijkstra([idx(u.x|0,u.y|0)],enemyMoveCost,1);let best=null,bd=Infinity;
+    for(const b of S.buildings){if(b.type!=='wall'||b.built<1)continue;const wk=idx(b.i,b.j);if(ladderMap.has(wk))continue;
+      for(const [di,dj] of DIRS.slice(0,4)){const fi=b.i+di,fj=b.j+dj;if(!inb(fi,fj)||S.occ[idx(fi,fj)])continue;const fk=idx(fi,fj),d=here[fk];if(d<bd){bd=d;best={w:wk,f:fk};}}}
+    u.lt=L=best;
+  }
+  if(!L){if(!efield)return;const st=nextStep(u,efield,1);if(st&&!S.occ[idx(st[0],st[1])])stepTo(u,st[0]+.5,st[1]+.5,dt);return;}
+  if(idx(u.x|0,u.y|0)===L.f){
+    faceTo(u,L.w%N+.5,((L.w/N)|0)+.5);u.setup=(u.setup||0)+dt;u.atk=0.2;u.lastAtk=S.t;
+    if(u.setup>=1.5)placeLadder(u,L);
+    return;
+  }
+  u.setup=0;
+  const r=followField(u,getEField(L.f),dt);
+  if(r==='stuck'||r==='goal')stepTo(u,L.f%N+.5,((L.f/N)|0)+.5,dt);
+}
 function enemyAI(u,dt){
   const ut=UT[u.type];
+  if(ut.ladder){ladderAI(u,dt);return;}
   if(ut.artillery){
     if((u.scan-=dt)<=0){u.scan=0.6;let best=null,bd=ut.range;for(const b of S.buildings){const d=rectDist(u,b);if(d<bd){bd=d;best=b;}}u.btgt=best?best.id:0;}
     const b=u.btgt?bmap.get(u.btgt):null;
@@ -527,10 +594,10 @@ function enemyAI(u,dt){
   }
   if(!ut.siege){
     let tgt=u.tgt?umap.get(u.tgt):null;
-    if(tgt&&(tgt.hp<=0||Math.hypot(tgt.x-u.x,tgt.y-u.y)>8||(!ut.ranged&&!sameLevel(u,tgt))))tgt=null;
+    if(tgt&&(tgt.hp<=0||tgt.inKeep||Math.hypot(tgt.x-u.x,tgt.y-u.y)>8||(!ut.ranged&&!sameLevel(u,tgt))))tgt=null;
     if(!tgt&&(u.scan-=dt)<=0){
       u.scan=0.35+Math.random()*0.2;const R=ut.ranged?rangeOf(u)+0.8:4.5;let bd=R*R;
-      for(const p of S.units){if(p.team!==0||p.hp<=0)continue;if(!ut.ranged&&!sameLevel(u,p))continue;const d=(p.x-u.x)**2+(p.y-u.y)**2;if(d<bd){bd=d;tgt=p;}}
+      for(const p of S.units){if(p.team!==0||p.hp<=0||p.inKeep)continue;if(!ut.ranged&&!sameLevel(u,p))continue;const d=(p.x-u.x)**2+(p.y-u.y)**2;if(d<bd){bd=d;tgt=p;}}
     }
     u.tgt=tgt?tgt.id:0;
     if(tgt){
@@ -553,13 +620,14 @@ function enemyAI(u,dt){
   if(!efield)return;
   const st=nextStep(u,efield,1);
   if(!st)return;
-  const bid=S.occ[idx(st[0],st[1])];
-  if(bid){u.btgt=bid;return;}
+  const nk=idx(st[0],st[1]),bid=S.occ[nk];
+  if(bid&&!ladderMap.has(nk)){u.btgt=bid;return;}
   stepTo(u,st[0]+.5,st[1]+.5,dt);
 }
 
 function playerAI(u,dt){
   const ut=UT[u.type];
+  if(u.type==='lord'&&!u.retreat&&u.hp<u.maxhp*0.35){lordToKeep(u);toast('Sang Penguasa mundur ke dalam benteng untuk memulihkan diri.',true);}
   if(u.order){
     const o=u.order,f=getField(o.k);
     const r=followField(u,f,dt);
@@ -567,14 +635,24 @@ function playerAI(u,dt){
     else if(r==='stuck'){u.order=null;u.hold={x:u.x,y:u.y};}
     return;
   }
-  if(!u.tgt&&u.hp<u.maxhp&&S.t-(u.lastHit||0)>5)u.hp=Math.min(u.maxhp,u.hp+2*dt);
+  if(u.type==='lord'){
+    // the lord falls back to the campfire when badly hurt and only returns to the fight once healed
+    if(u.retreat&&u.hp>u.maxhp*0.6)u.retreat=false;
+    if(!u.retreat&&u.hp<u.maxhp*0.35){lordToKeep(u);toast('Sang Penguasa mundur ke dalam benteng untuk memulihkan diri.',true);}
+    if(u.retreat&&!u.order){
+      if(Math.hypot(u.x-(KX+1.5),u.y-(KY+3.4))<1.3){u.inKeep=true;u.sel=false;selUnits.delete(u.id);u.x=KX+1.5;u.y=KY+1.5;return;}
+      lordToKeep(u);
+    }
+    if(u.retreat)return;
+  }
+  if(!u.tgt&&u.hp<u.maxhp&&S.t-(u.lastHit||0)>5)u.hp=Math.min(u.maxhp,u.hp+(u.type==='lord'?6:2)*dt);
   let tgt=u.tgt?umap.get(u.tgt):null;
   if(tgt&&tgt.hp<=0)tgt=null;
   if(tgt&&u.auto&&Math.hypot(tgt.x-u.hold.x,tgt.y-u.hold.y)>9)tgt=null;
   const high=elevAt(u.x,u.y)>0;
-  if(!tgt&&(u.scan-=dt)<=0&&!(high&&!ut.ranged)){
-    u.scan=0.3+Math.random()*0.2;const R=ut.ranged?rangeOf(u)+0.4:5;let bd=R*R;
-    for(const e of S.units){if(e.team!==1||e.hp<=0)continue;const d=(e.x-u.x)**2+(e.y-u.y)**2;
+  if(!tgt&&(u.scan-=dt)<=0){
+    u.scan=0.3+Math.random()*0.2;const wallMelee=high&&!ut.ranged;const R=ut.ranged?rangeOf(u)+0.4:wallMelee?2.6:u.type==='lord'?3.2:5;let bd=R*R;
+    for(const e of S.units){if(e.team!==1||e.hp<=0)continue;if(wallMelee&&!elevAt(e.x,e.y))continue;const d=(e.x-u.x)**2+(e.y-u.y)**2;
       if(d<bd&&Math.hypot(e.x-u.hold.x,e.y-u.hold.y)<8.5+(ut.ranged?3:0)){bd=d;tgt=e;}}
     if(tgt)u.auto=true;
   }
@@ -590,6 +668,13 @@ function playerAI(u,dt){
       if(r==='stuck')u.tgt=0;
     }
     return;
+  }
+  if(!ut.ranged&&S.ladders.length){
+    // melee troops near a ladder shove it off the wall
+    for(const L of S.ladders){const wx=L.w%N+.5,wy=((L.w/N)|0)+.5,fx=L.f%N+.5,fy=((L.f/N)|0)+.5;
+      if(Math.hypot(wx-u.x,wy-u.y)<1.35||Math.hypot(fx-u.x,fy-u.y)<1.2){faceTo(u,wx,wy);
+        if(u.cd<=0){u.cd=ut.cd;u.atk=0.3;L.hp-=ut.dmg;S.fx.push({k:'p',x:wx,y:wy,z:20,vx:0,vy:0,vz:30,t:0,life:0.5,c:'#8a6238'});if(L.hp<=0)removeLadder(L,true);}
+        return;}}
   }
   const dh=Math.hypot(u.hold.x-u.x,u.hold.y-u.y);
   if(dh>0.35){
@@ -717,13 +802,15 @@ function planWave(n){
   const m=DIFF[S.diff].mul,c={
     spear:Math.round((3+2*n)*m),archer:Math.round(Math.floor(n*1.4)*m),
     knight:n>=3?Math.round((n-2)*0.75*m):0,ram:n>=4?Math.max(1,Math.round(Math.floor((n-2)/2)*m)):0,
-    catapult:n>=6?Math.max(1,Math.round(Math.floor((n-4)/2)*m)):0};
+    catapult:n>=6?Math.max(1,Math.round(Math.floor((n-4)/2)*m)):0,
+    ladder:n>=3?Math.max(1,Math.round((1+Math.floor(n/3))*m)):0};
   return {n,c,split:n>=5&&n%2===1,cj:6+Math.floor(Math.random()*32)};
 }
 function waveDir(w){return w.split?'Barat dan Utara':'Barat';}
 function startWave(){
   const w=S.next&&S.next.n===S.wave?S.next:planWave(S.wave);const comp=[];
-  for(const t of ['spear','archer','knight','ram','catapult'])for(let k=0;k<(w.c[t]||0);k++)comp.push(t);
+  for(const t of ['spear','ladder','archer','knight','ram','catapult'])for(let k=0;k<(w.c[t]||0);k++)comp.push(t);
+  S.ladderWarned=false;
   comp.forEach((type,ix)=>{
     const north=w.split&&ix%2===1;
     let i,j;
@@ -757,7 +844,7 @@ function update(dt){
   assignWorkers();
   for(const b of [...S.buildings]){if(bmap.has(b.id))updateBuilding(b,dt);if(S.over)return;}
   for(const u of S.units){
-    if(u.hp<=0)continue;u.cd-=dt;u.atk=Math.max(0,u.atk-dt);
+    if(u.hp<=0)continue;if(u.inKeep){lordInKeep(u,dt);continue;}u.cd-=dt;u.atk=Math.max(0,u.atk-dt);
     if(u.team===1){enemyAI(u,dt);
       // safety net: an enemy that neither moves nor fights for 30 s gives up and leaves
       if(!u.chk||S.t-u.chk.t>10){if(u.chk&&Math.hypot(u.x-u.chk.x,u.y-u.chk.y)<0.3&&S.t-(u.lastAtk||0)>10&&!S.buildings.some(x=>rectDist(u,x)<6)&&!S.units.some(p=>p.team===0&&Math.hypot(p.x-u.x,p.y-u.y)<6))u.idleN=(u.idleN||0)+1;else u.idleN=0;u.chk={x:u.x,y:u.y,t:S.t};
@@ -778,8 +865,8 @@ function update(dt){
   }
   // separation
   const us=S.units;
-  for(let a=0;a<us.length;a++){const A=us[a];if(A.type==='ram')continue;
-    for(let c=a+1;c<us.length;c++){const B=us[c];if(B.type==='ram')continue;
+  for(let a=0;a<us.length;a++){const A=us[a];if(A.type==='ram'||A.inKeep)continue;
+    for(let c=a+1;c<us.length;c++){const B=us[c];if(B.type==='ram'||B.inKeep)continue;
       const dx=B.x-A.x,dy=B.y-A.y;if(Math.abs(dx)>.42||Math.abs(dy)>.42)continue;
       const d=Math.hypot(dx,dy)||0.01;if(d>=.42)continue;
       const p=(.42-d)/2*0.5,px=dx/d*p,py=dy/d*p;
@@ -793,7 +880,7 @@ function update(dt){
     p.t+=dt;
     if(p.kind==='rock'){
       if(p.t>=p.dur){p.done=true;const b=bmap.get(p.bid);
-        for(const v of S.units)if(v.team===0&&Math.hypot(v.x-p.tx,v.y-p.ty)<0.9)damageUnit(v,14,null,false);
+        for(const v of S.units)if(v.team===0&&!v.inKeep&&Math.hypot(v.x-p.tx,v.y-p.ty)<0.9)damageUnit(v,14,null,false);
         S.fx.push({k:'dust',x:p.tx,y:p.ty,t:0,life:0.8});particles(p.tx,p.ty,20,6,'#bfae8a',1.8);addShake(3,p.tx,p.ty);sfx('crash',p.tx,p.ty);
         if(b)damageBuilding(b,p.dmg);if(S.over)return;}
       continue;
@@ -806,13 +893,16 @@ function update(dt){
   }
   S.proj=S.proj.filter(p=>!p.done);
   // deaths
+  let lordDown=false;
   for(const u of S.units)if(u.hp<=0){
     if(u.fled)continue;
+    if(u.id===S.lordId)lordDown=true;
     S.fx.push({k:'corpse',x:u.x,y:u.y,t:0,life:9,team:u.team,type:u.type,face:u.face});
     sfx('die',u.x,u.y);
     if(u.team===1){S.kills++;S.res.gold+=3;}else{S.lost++;selUnits.delete(u.id);}
   }
   S.units=S.units.filter(u=>u.hp>0);
+  if(lordDown){endGame(false,'lord');return;}
   for(const f of S.fx){f.t+=dt;if(f.vz!==undefined){f.x+=f.vx*dt;f.y+=f.vy*dt;f.z+=f.vz*dt;f.vz-=170*dt;if(f.z<=0){f.z=0;f.vx=f.vy=f.vz=0;}}}
   if(S.fx.length>700)S.fx.splice(0,S.fx.length-700);
   S.fx=S.fx.filter(f=>f.t<f.life);
@@ -1143,10 +1233,33 @@ function drawPerson(c,sx,sy,tunic,f,walk,opt){
 function drawUnit(c,u,tm){
   const [sx,sy1]=iso(u.x,u.y),sy=sy1-elevAt(u.x,u.y),f=u.face||1,pl=u.team===0;
   const tunic=pl?'#b3261e':'#3553a8';
-  if(u.sel){c.strokeStyle='#e4b75c';c.lineWidth=1.6;c.beginPath();c.ellipse(sx,sy,u.type==='knight'||u.type==='ram'?12:8.5,u.type==='knight'||u.type==='ram'?6:4.3,0,0,7);c.stroke();}
+  const big=u.type==='knight'||u.type==='ram'||u.type==='lord';
+  if(u.type==='lord'&&!u.icon){c.strokeStyle=u.sel?'rgba(228,183,92,.55)':'rgba(228,183,92,.28)';c.lineWidth=1.2;c.beginPath();c.ellipse(sx,sy,3.5*HW*1.414,3.5*HH*1.414,0,0,7);c.stroke();}
+  if(u.sel){c.strokeStyle='#e4b75c';c.lineWidth=1.6;c.beginPath();c.ellipse(sx,sy,big?12:8.5,big?6:4.3,0,0,7);c.stroke();}
   c.fillStyle='rgba(30,18,6,.3)';c.beginPath();c.ellipse(sx,sy,u.type==='knight'?10:6.5,u.type==='knight'?4:3,0,0,7);c.fill();
   const ph=Math.sin(u.walk||0),thrust=u.atk>0?3:0;
-  if(u.type==='catapult'){
+  if(u.type==='lord'){
+    c.save();c.translate(sx,sy);c.scale(1.3,1.3);
+    c.fillStyle='#6e1410';c.beginPath();c.moveTo(-3.4,-14.5);c.lineTo(3.4,-14.5);c.lineTo(3-f*2.5,-1.5);c.lineTo(-3-f*2.5,-1.5);c.closePath();c.fill();
+    c.strokeStyle='#4a3420';c.lineWidth=1.8;c.beginPath();c.moveTo(-1.5,-7);c.lineTo(-1.5+ph*2,-.5);c.moveTo(1.5,-7);c.lineTo(1.5-ph*2,-.5);c.stroke();
+    c.fillStyle='#d9a63a';c.beginPath();c.moveTo(-3.4,-6.5);c.lineTo(3.4,-6.5);c.lineTo(2.8,-15);c.lineTo(-2.8,-15);c.closePath();c.fill();
+    c.fillStyle='#b3261e';c.fillRect(-.6,-14,1.2,6);c.fillRect(-2.2,-12.3,4.4,1.2);
+    c.fillStyle='#d9a877';c.beginPath();c.arc(0,-17.5,2.6,0,7);c.fill();
+    c.fillStyle='#9aa0a6';c.beginPath();c.arc(0,-18.2,2.9,Math.PI,0);c.fill();
+    c.fillStyle='#f2c94c';c.beginPath();c.moveTo(-2.9,-19.5);c.lineTo(-2.9,-22.5);c.lineTo(-1.5,-20.8);c.lineTo(0,-23.2);c.lineTo(1.5,-20.8);c.lineTo(2.9,-22.5);c.lineTo(2.9,-19.5);c.closePath();c.fill();
+    const sw=u.atk>0?-0.3:-1.1;c.strokeStyle='#dfe3e6';c.lineWidth=1.5;c.beginPath();c.moveTo(3*f,-10);c.lineTo(3*f+Math.cos(sw)*10*f,-10+Math.sin(sw)*10);c.stroke();
+    c.strokeStyle='#8a6238';c.lineWidth=1.6;c.beginPath();c.moveTo(3*f-2*Math.sin(sw)*f,-10+2*Math.cos(sw)*.5);c.lineTo(3*f+2*Math.sin(sw)*f,-10-2*Math.cos(sw)*.5);c.stroke();
+    c.restore();
+  } else if(u.type==='ladder'){
+    c.strokeStyle='#4a3420';c.lineWidth=1.8;c.beginPath();c.moveTo(sx-1.5,sy-7);c.lineTo(sx-1.5+ph*2,sy-.5);c.moveTo(sx+1.5,sy-7);c.lineTo(sx+1.5-ph*2,sy-.5);c.stroke();
+    c.fillStyle=tunic;c.beginPath();c.moveTo(sx-3.3,sy-6.5);c.lineTo(sx+3.3,sy-6.5);c.lineTo(sx+2.7,sy-15);c.lineTo(sx-2.7,sy-15);c.closePath();c.fill();
+    c.fillStyle='#d9a877';c.beginPath();c.arc(sx,sy-17.5,2.6,0,7);c.fill();
+    c.fillStyle='#efe6d2';c.beginPath();c.ellipse(sx,sy-19,3.2,2.2,0,Math.PI,0);c.fill();
+    // ladder carried on the shoulder
+    const lx=sx-14*f,ly=sy-12,ex=sx+12*f,ey=sy-22+(u.atk>0?-6:0);
+    c.strokeStyle='#8a6238';c.lineWidth=1.3;c.beginPath();c.moveTo(lx,ly);c.lineTo(ex,ey);c.moveTo(lx,ly+3);c.lineTo(ex,ey+3);c.stroke();
+    c.lineWidth=0.9;c.beginPath();for(let k=1;k<6;k++){const t=k/6,x=lx+(ex-lx)*t,y=ly+(ey-ly)*t;c.moveTo(x,y);c.lineTo(x,y+3);}c.stroke();
+  } else if(u.type==='catapult'){
     c.fillStyle='#6c4a29';c.fillRect(sx-11,sy-9,22,5);
     c.fillStyle='#3a2a1a';for(const dx of [-8,8]){c.beginPath();c.arc(sx+dx,sy-3,3.2,0,7);c.fill();}
     c.strokeStyle='#5a3a1c';c.lineWidth=2;c.beginPath();c.moveTo(sx-6,sy-9);c.lineTo(sx,sy-18);c.lineTo(sx+6,sy-9);c.stroke();
@@ -1194,7 +1307,7 @@ function drawUnit(c,u,tm){
       c.fillStyle='#7a5430';c.fillRect(sx-3.5*f-1,sy-16,2,6);
     }
   }
-  if(u.hp<u.maxhp){const top=u.type==='knight'?32:u.type==='ram'?36:28;c.fillStyle='rgba(20,12,5,.75)';c.fillRect(sx-8,sy-top,16,3);c.fillStyle=pl?'#8cbf6a':'#e8644a';c.fillRect(sx-8,sy-top,16*Math.max(0,u.hp/u.maxhp),3);}
+  if(u.hp<u.maxhp||u.type==='lord'){const top=u.type==='knight'?32:u.type==='ram'?36:u.type==='lord'?38:28;c.fillStyle='rgba(20,12,5,.75)';c.fillRect(sx-8,sy-top,16,3);c.fillStyle=pl?'#8cbf6a':'#e8644a';c.fillRect(sx-8,sy-top,16*Math.max(0,u.hp/u.maxhp),3);}
 }
 function drawCorpse(c,f){
   const [sx,sy]=iso(f.x,f.y);const a=Math.min(1,(f.life-f.t)/2);c.globalAlpha=a*0.85;
@@ -1238,6 +1351,7 @@ function render(tm){
     else if(f.k==='mark'){const p=iso(f.x,f.y),k=f.t/f.life;ctx.strokeStyle=f.c;ctx.globalAlpha=1-k;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p[0],p[1]-(f.z||0),14*(1-k)+4,7*(1-k)+2,0,0,7);ctx.stroke();ctx.globalAlpha=1;}
   }
   for(const q of S.traps)if(vis(q.i+.5,q.j+.5))drawBuilding(ctx,{type:'pit',i:q.i,j:q.j,w:1,h:1,seen:q.seen},tm,true);
+  for(const L of S.ladders)if(vis(L.w%N+.5,((L.w/N)|0)+.5))objsPre.push(L);
   // selected building footprint
   if(selB){const b=bmap.get(selB);if(b){const A=iso(b.i,b.j),B=iso(b.i+b.w,b.j),C=iso(b.i+b.w,b.j+b.h),D=iso(b.i,b.j+b.h);ctx.strokeStyle='#e4b75c';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.lineTo(C[0],C[1]);ctx.lineTo(D[0],D[1]);ctx.closePath();ctx.stroke();ctx.setLineDash([]);
     if(b.type==='tower'||b.type==='keep'){const p=iso(b.i+b.w/2,b.j+b.h/2),R=b.type==='tower'?towerRange():6;ctx.strokeStyle='rgba(228,183,92,.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(p[0],p[1],R*HW*1.414,R*HH*1.414,0,0,7);ctx.stroke();}
@@ -1253,7 +1367,7 @@ function render(tm){
   for(let k=0;k<N*N;k++){if(!S.tree[k])continue;const i=k%N,j=(k/N)|0;if(!vis(i+.5,j+.5))continue;objs.push({d:i+j+1.2,k:0,i,j});}
   for(const b of S.buildings){if(!vis(b.i+b.w/2,b.j+b.h/2)&&!vis(b.i,b.j))continue;objs.push({d:b.i+b.j+b.w/2+b.h/2,k:1,b});
     if(b.wk&&b.type==='wood')objs.push({d:b.wk.x+b.wk.y,k:3,w:b.wk});}
-  for(const u of S.units){if(!vis(u.x,u.y))continue;let d=u.x+u.y;if(elevAt(u.x,u.y)){const b=bAt(u.x,u.y);d=b.i+b.j+b.w/2+b.h/2+0.02+d*0.001;}objs.push({d,k:2,u});}
+  for(const u of S.units){if(u.inKeep||!vis(u.x,u.y))continue;let d=u.x+u.y;if(elevAt(u.x,u.y)){const b=bAt(u.x,u.y);d=b.i+b.j+b.w/2+b.h/2+0.02+d*0.001;}objs.push({d,k:2,u});}
   // idle peasants at fire
   const idle=Math.min(S.idle||0,16);
   for(let n=0;n<idle;n++){const a=n/Math.max(idle,1)*Math.PI*2+0.3,r=0.75+(n%2)*0.35;objs.push({d:FIRE.x+Math.cos(a)*r+FIRE.y+Math.sin(a)*r,k:4,x:FIRE.x+Math.cos(a)*r,y:FIRE.y+Math.sin(a)*r,a});}
@@ -1281,6 +1395,8 @@ function render(tm){
       ctx.fillStyle='#ffd35a';ctx.beginPath();ctx.moveTo(px-2.5,py-2);ctx.quadraticCurveTo(px,py-9*fl,px+2.5,py-2);ctx.fill();}
     else if(o.k===6){ctx.globalAlpha=0.6;drawBuilding(ctx,{type:ghost.type,i:ghost.i,j:ghost.j,w:BT[ghost.type].w,h:BT[ghost.type].h,hp:1,maxhp:1,built:1},tm,true);ctx.globalAlpha=1;}
   }
+  // ladders sit on the overlay layer so a breach on a far-side wall stays readable
+  for(const L of objsPre)drawLadder(ctx,L,tm);objsPre.length=0;
   if(ghost&&ghost.line){ctx.globalAlpha=0.6;for(const g of ghost.line)drawBuilding(ctx,{type:ghost.type,i:g.i,j:g.j,w:1,h:1,hp:1,maxhp:1,built:1},tm,true);ctx.globalAlpha=1;}
   if(ghost&&!ghost.line&&!ghost.ok&&ghost.why){
     const t=BT[ghost.type],p=iso(ghost.i+t.w/2,ghost.j+t.h/2),y=p[1]-t.h*HH-40;
@@ -1306,6 +1422,19 @@ function render(tm){
   if(boxRect){const {x0,y0,x1,y1}=boxRect;ctx.fillStyle='rgba(228,183,92,.12)';ctx.strokeStyle='#e4b75c';ctx.lineWidth=1.5;ctx.fillRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0),Math.abs(y1-y0));ctx.strokeRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0),Math.abs(y1-y0));}
 }
 
+const objsPre=[];
+function drawLadder(c,L,tm){
+  const wi=L.w%N,wj=(L.w/N)|0,fi=L.f%N,fj=(L.f/N)|0;
+  const top=iso(wi+.5+(fi-wi)*0.42,wj+.5+(fj-wj)*0.42),foot=iso(fi+.5+(wi-fi)*0.05,fj+.5+(wj-fj)*0.05);
+  const z=ELEV.wall+8,ax=top[0],ay=top[1]-z,bx=foot[0],by=foot[1];
+  const dx=bx-ax,dy=by-ay,l=Math.hypot(dx,dy),nx=-dy/l*3.2,ny=dx/l*3.2;
+  c.strokeStyle='#7a5430';c.lineWidth=1.8;c.beginPath();c.moveTo(ax+nx,ay+ny);c.lineTo(bx+nx,by+ny);c.moveTo(ax-nx,ay-ny);c.lineTo(bx-nx,by-ny);c.stroke();
+  c.strokeStyle='#a07a48';c.lineWidth=1.1;c.beginPath();
+  for(let k=1;k<8;k++){const t=k/8,x=ax+dx*t,y=ay+dy*t;c.moveTo(x+nx,y+ny);c.lineTo(x-nx,y-ny);}c.stroke();
+  c.strokeStyle='#3a2a1a';c.lineWidth=1.2;c.beginPath();c.moveTo(ax,ay);c.lineTo(ax,ay-16);c.stroke();
+  const wv=reduceMotion?0:Math.sin(tm*5+L.w)*1.5;c.fillStyle='#3553a8';c.beginPath();c.moveTo(ax,ay-16);c.lineTo(ax+9,ay-14+wv);c.lineTo(ax,ay-11);c.closePath();c.fill();
+  if(L.hp<70){c.fillStyle='rgba(20,12,5,.7)';c.fillRect(ax-8,ay-8,16,3);c.fillStyle='#e8644a';c.fillRect(ax-8,ay-8,16*Math.max(0,L.hp/70),3);}
+}
 function drawRock(p){
   const k=Math.min(1,p.t/p.dur),x=p.sx+(p.tx-p.sx)*k,y=p.sy+(p.ty-p.sy)*k,z=p.z0*(1-k)+Math.sin(k*Math.PI)*110,a=iso(x,y);
   ctx.fillStyle='rgba(40,25,10,.25)';ctx.beginPath();ctx.ellipse(a[0],a[1],4,2,0,0,7);ctx.fill();
@@ -1338,7 +1467,7 @@ function iconFor(type){
 }
 function unitIcon(type,team){
   const c=document.createElement('canvas');c.width=80;c.height=80;const g=c.getContext('2d');g.translate(40,68);g.scale(2,2);
-  drawUnit(g,{x:0,y:0,type,team:team||0,face:1,walk:0,atk:0,hp:1,maxhp:1},0);return c.toDataURL();
+  drawUnit(g,{x:0,y:0,type,team:team||0,face:1,walk:0,atk:0,hp:1,maxhp:1,icon:1},0);return c.toDataURL();
 }
 function resIcon(kind){
   const c=document.createElement('canvas');c.width=40;c.height=40;const g=c.getContext('2d');g.translate(20,20);
@@ -1429,8 +1558,10 @@ function drawMini(){
   if(!miniBg||!S)return;const g=mctx;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,264,136);g.drawImage(miniBg,0,0);g.translate(132,2);
   const dot=(x,y,c,r)=>{const [px,py]=iso(x,y);g.fillStyle=c;g.fillRect(px*MS-r/2,py*MS-r/2,r,r);};
   for(const b of S.buildings){const c=b.type==='keep'?'#b3261e':ELEV[b.type]?'#f6eed8':'#b07a3e';for(let y=b.j;y<b.j+b.h;y++)for(let x=b.i;x<b.i+b.w;x++)dot(x+.5,y+.5,c,4);}
-  for(const u of S.units)if(u.team===0)dot(u.x,u.y,'#ff4b3a',3.5);
+  for(const u of S.units)if(u.team===0&&u.type!=='lord')dot(u.x,u.y,'#ff4b3a',3.5);
+  for(const L of S.ladders)dot(L.w%N+.5,((L.w/N)|0)+.5,'#6f95ff',4);
   for(const u of S.units)if(u.team===1){dot(u.x,u.y,'#14234f',5.5);dot(u.x,u.y,'#6f95ff',3.5);}
+  const lu=S.units.find(u=>u.id===S.lordId);if(lu){dot(lu.x,lu.y,'#3a2508',7);dot(lu.x,lu.y,'#ffd34d',5);}
   const z=cam.z,x0=(cam.x-W/2/z)*MS,x1=(cam.x+W/2/z)*MS,y0=(cam.y-H/2/z)*MS,y1=(cam.y+H/2/z)*MS;
   g.strokeStyle='#e4b75c';g.lineWidth=2;g.strokeRect(x0,y0,x1-x0,y1-y0);
 }
@@ -1453,6 +1584,7 @@ const QUESTS=[
   {t:'Pasang 3 Jebakan di jalur musuh',check:()=>S.pits>=3,prog:()=>`${Math.min(3,S.pits)}/3`,rw:{gold:25}},
   {t:'Beli peningkatan di Benteng Utama',check:()=>Object.values(S.up).some(v=>v>0),rw:{stone:30}},
   {t:'Pukul mundur gelombang ketiga',check:()=>S.wave>=3&&!S.spawnQ.length&&!S.units.some(u=>u.team===1),rw:{gold:60}},
+  {t:'Jatuhkan tangga musuh dengan Tombak di atas tembok',check:()=>S.pushed>=1,rw:{gold:40}},
 ];
 function questTick(){
   const el=document.getElementById('quest');const q=QUESTS[S.quest];
@@ -1470,7 +1602,7 @@ function costText(c){return Object.entries(c).map(([k,v])=>`${v} ${RES_NAME[k]}`
 function buildUI(){
   for(const k of ['gold','wood','stone','food','pop','heart'])$('ic-'+k).src=resIcon(k);
   for(const t of [...BUILD_ORDER,'keep'])ICONS[t]=iconFor(t);
-  for(const t of ['spear','archer','knight'])ICONS['u_'+t]=unitIcon(t);
+  for(const t of ['spear','archer','knight','lord'])ICONS['u_'+t]=unitIcon(t);
   ICONS.u_enemy=unitIcon('spear',1);
   const bar=$('build');bar.innerHTML='';
   for(const t of BUILD_ORDER){
@@ -1518,7 +1650,7 @@ function openBuildingPanel(b){
 }
 function openUnitsPanel(){
   panelKind='u';selB=0;
-  panel.innerHTML=`<div class="ph"><img alt="" src="${ICONS.u_spear}"><div><h3 data-v="ucount"></h3><p data-v="ubreak"></p></div><button class="x" data-act="close" aria-label="Tutup">×</button></div><p class="note">Ketuk tanah untuk bergerak, ketuk prajurit biru untuk menyerang. Ketuk tembok atau menara untuk menaruh pasukan di atasnya: pemanah di sana menembak lebih jauh dan tidak bisa dijangkau tombak musuh.</p>`;
+  panel.innerHTML=`<div class="ph"><img alt="" src="${ICONS.u_spear}"><div><h3 data-v="ucount"></h3><p data-v="ubreak"></p></div><button class="x" data-act="close" aria-label="Tutup">×</button></div><p class="note" data-v="unote"></p><button class="fix" data-act="lordkeep" hidden>Masuk ke benteng</button>`;
   panel.hidden=false;updatePanel();
 }
 function openPeoplePanel(){
@@ -1560,9 +1692,11 @@ function updatePanel(){
   }
   if(panelKind==='u'){
     const us=S.units.filter(u=>selUnits.has(u.id));if(!us.length){closePanel();return;}
-    setV('ucount',`${us.length} pasukan dipilih`);
+    setV('ucount',us.length===1&&us[0].type==='lord'?'Sang Penguasa':`${us.length} pasukan dipilih`);
     const c={};for(const u of us)c[u.type]=(c[u.type]||0)+1;
     setV('ubreak',Object.entries(c).map(([t,n])=>`${n} ${UT[t].name}`).join(' · '));
+    {const lb=panel.querySelector('[data-act="lordkeep"]');if(lb)lb.hidden=!c.lord;}
+    setV('unote',c.lord&&us.length===1?`HP ${Math.ceil(us[0].hp)}/${us[0].maxhp}. Pasukan dalam 3,5 petak darinya memberi kerusakan +20%. Jika ia gugur, kamu kalah. Di bawah 35% HP ia otomatis berlindung di dalam benteng.`:'Ketuk tanah untuk bergerak, ketuk prajurit biru untuk menyerang. Ketuk tembok atau menara untuk menaruh pasukan di atasnya. Tombak di atas tembok menjatuhkan tangga musuh.');
   }
   if(panelKind==='w'){
     const active=S.units.some(u=>u.team===1)||S.spawnQ.length,w=S.next;
@@ -1570,7 +1704,7 @@ function updatePanel(){
     else{setV('wt',`Gelombang ${w.n} dari ${MAX_WAVE}`);setV('ws',active?`Menyusul setelah gelombang ini · dari ${waveDir(w)}`:`Tiba dalam ${fmt(S.waveT)} · dari ${waveDir(w)}`);}
     const el=panel.querySelector('[data-v="wc"]'),html=w?Object.entries(w.c).filter(([,n])=>n).map(([t,n])=>`<span>${n} ${UT[t].name}</span>`).join(''):'';
     if(el.dataset.h!==html){el.innerHTML=html;el.dataset.h=html;}
-    setV('wn',!w?'':w.c.catapult?'Ketapel menembak bangunan dari 7 petak. Menara (7,5 petak) dan pemanah di tembok bisa menjangkaunya, atau kirim Ksatria keluar.':w.c.ram?'Pendobrak hanya menyerang bangunan dan tahan panah. Hadang dengan Tombak dan Ksatria.':w.split?'Sebagian musuh datang dari utara, sisi yang tidak terlindung sungai.':'Musuh menyeberang lewat titik dangkal sungai. Jaga titik itu dengan tembok, menara, dan pemanah.');
+    setV('wn',!w?'':w.c.ladder&&(w.n===3||!w.c.catapult)&&!w.c.ram?'Pembawa Tangga memasang tangga di tembok. Pemanah bisa menembak mereka di jalan; Tombak di atas tembok menjatuhkan tangga yang terpasang.':w.c.catapult?'Ketapel menembak bangunan dari 7 petak. Menara (7,5 petak) dan pemanah di tembok bisa menjangkaunya, atau kirim Ksatria keluar.':w.c.ram?'Pendobrak hanya menyerang bangunan dan tahan panah. Hadang dengan Tombak dan Ksatria.':w.split?'Sebagian musuh datang dari utara, sisi yang tidak terlindung sungai.':'Musuh menyeberang lewat titik dangkal sungai. Jaga titik itu dengan tembok, menara, dan pemanah.');
     panel.querySelector('[data-act="call"]').hidden=!!active||!w;
   }
   if(panelKind==='p'){
@@ -1595,6 +1729,7 @@ panel.addEventListener('click',e=>{
   if(a==='repairall'){const n=repairAll();toast(n?`${n} bangunan diperbaiki.`:'Tidak ada yang bisa diperbaiki sekarang (batu kurang atau musuh terlalu dekat).');if(n)sfx('build',KX,KY);updatePanel();return;}
   if(a==='upg'){if(!buyUpgrade(el.dataset.k))toast('Bahan tidak cukup.');updatePanel();return;}
   if(a==='demolish'){const b=bmap.get(selB);if(!b)return;const c=BT[b.type].cost||{};for(const k in c)S.res[k]+=Math.floor(c[k]/2);removeBuilding(b,false);closePanel();return;}
+  if(a==='lordkeep'){const L=S.units.find(u=>u.id===S.lordId);if(L&&!L.inKeep){L.stay=true;lordToKeep(L);clearSel();closePanel();toast('Sang Penguasa masuk ke benteng. Ketuk tombol Penguasa untuk mengeluarkannya.');}return;}
   if(a==='call'){if(S.wave<MAX_WAVE){S.waveT=0.01;S.warned=true;}closePanel();return;}
   if(a==='tax'){S.tax=+el.dataset.t;updatePanel();toast(`Pajak: ${TAX[S.tax].name}`);return;}
 });
@@ -1613,13 +1748,17 @@ function updateHUD(){
   const bt=innerHeight-$('bottom').getBoundingClientRect().top+8+'px';
   if(panel.style.bottom!==bt){panel.style.bottom=bt;$('hint').style.bottom=bt;}
   questTick();drawMini();
+  {const L=S.units.find(u=>u.id===S.lordId),hb=$('lordHp');if(L){$('lordBtn').querySelector('span').textContent=L.inKeep?'Di benteng':'Penguasa';const r=L.hp/L.maxhp;hb.style.width=(100*r)+'%';hb.style.background=r>.5?'var(--ok)':r>.3?'var(--gold)':'var(--bad)';}}
   updatePanel();
 }
 
 function clearSel(){for(const u of S.units)u.sel=false;selUnits.clear();}
 function selectUnits(list,add){if(!add)clearSel();for(const u of list){u.sel=true;selUnits.add(u.id);}if(selUnits.size){selB=0;openUnitsPanel();}else if(panelKind==='u')closePanel();}
 
-$('armyBtn').addEventListener('click',()=>{setBuild(null);const a=S.units.filter(u=>u.team===0);selectUnits(a);if(!a.length)toast('Belum ada pasukan. Latih di Barak.');});
+$('lordBtn').addEventListener('click',()=>{setBuild(null);const L=S.units.find(u=>u.id===S.lordId);if(!L)return;
+  if(L.inKeep){if(L.stay){L.stay=false;toast(L.hp>=L.maxhp*0.85?'Sang Penguasa keluar dari benteng.':`Sang Penguasa akan keluar saat pulih (${Math.round(100*L.hp/L.maxhp)}%).`);}else toast(`Sang Penguasa memulihkan diri di dalam benteng (${Math.round(100*L.hp/L.maxhp)}%).`);centerOn(KX+1.5,KY+2.5);return;}
+  selectUnits([L]);centerOn(L.x,L.y);});
+$('armyBtn').addEventListener('click',()=>{setBuild(null);const a=S.units.filter(u=>u.team===0&&u.type!=='lord');selectUnits(a);if(!a.length)toast('Belum ada pasukan. Latih di Barak.');});
 $('boxBtn').addEventListener('click',()=>{if(buildType)setBuild(null);boxMode=!boxMode;$('boxBtn').classList.toggle('on',boxMode);if(boxMode)showHint('Seret di peta untuk memilih pasukan dalam kotak.');else hideHint();});
 function archersToWalls(){
   const pool=S.units.filter(u=>u.team===0&&u.type==='archer'&&(selUnits.size?selUnits.has(u.id):!elevAt(u.x,u.y)&&!(u.order&&elevAt(u.order.x,u.order.y))));
@@ -1659,6 +1798,7 @@ const HELP=`<ol>
     <li><b>Penebang</b> dekat pohon palem, <b>Tambang Batu</b> di batu abu-abu, <b>Kebun Kurma</b> di tanah hijau. <b>Rumah</b> menambah rakyat.</li>
     <li><b>Barak</b> melatih rakyat menganggur menjadi Tombak, Pemanah, dan Ksatria (emas + kayu).</li>
     <li>Tekan <b>Pemanah ke tembok</b>: jangkauan lebih jauh dan aman dari tombak musuh. <b>Gerbang</b> bisa ditaruh di atas tembok.</li>
+    <li>Lindungi <b>Sang Penguasa</b>: auranya memberi pasukan +20% kerusakan, tapi jika ia gugur, kamu kalah. Musuh membawa <b>tangga</b>; Tombak di atas tembok menjatuhkannya.</li>
     <li><b>Jebakan</b> di titik dangkal sungai melukai musuh tanpa terlihat. Ketuk <b>Benteng Utama</b> untuk peningkatan dan perbaikan.</li>
     <li>Ketuk prajurit untuk memilih, ketuk tanah untuk bergerak. Seret untuk menggeser, cubit untuk zoom, ketuk peta kecil untuk melompat.</li>
   </ol>`;
@@ -1693,7 +1833,7 @@ function placeGhost(){
 }
 function unitAtScreen(X,Y,team){
   let best=null,bd=22*Math.max(1,cam.z);
-  for(const u of S.units){if(team!==undefined&&u.team!==team)continue;const p=iso(u.x,u.y);const [sx,sy]=w2s(p[0],p[1]-10-elevAt(u.x,u.y));const d=Math.hypot(sx-X,sy-Y);if(d<bd){bd=d;best=u;}}
+  for(const u of S.units){if(u.inKeep||(team!==undefined&&u.team!==team))continue;const p=iso(u.x,u.y);const [sx,sy]=w2s(p[0],p[1]-10-elevAt(u.x,u.y));const d=Math.hypot(sx-X,sy-Y);if(d<bd){bd=d;best=u;}}
   return best;
 }
 function buildingAtTile(x,y){if(!inb(x|0,y|0))return null;const id=S.occ[idx(x|0,y|0)];return id?bmap.get(id):null;}
@@ -1773,7 +1913,7 @@ function endPtr(e){
   if(buildType&&g.btn!==2&&g.btn!==1){updateGhost(e.clientX,e.clientY,g.touch&&g.moved);placeGhost();if(!g.touch)updateGhost(e.clientX,e.clientY,false);return;}
   if(g.type==='box'&&boxRect){
     const {x0,y0,x1,y1}=boxRect;boxRect=null;const lx=Math.min(x0,x1),hx=Math.max(x0,x1),ly=Math.min(y0,y1),hy=Math.max(y0,y1);
-    const list=S.units.filter(u=>{if(u.team!==0)return false;const p=iso(u.x,u.y);const [sx,sy]=w2s(p[0],p[1]-8-elevAt(u.x,u.y));return sx>=lx&&sx<=hx&&sy>=ly&&sy<=hy;});
+    const list=S.units.filter(u=>{if(u.team!==0||u.inKeep)return false;const p=iso(u.x,u.y);const [sx,sy]=w2s(p[0],p[1]-8-elevAt(u.x,u.y));return sx>=lx&&sx<=hx&&sy>=ly&&sy<=hy;});
     selectUnits(list,g.shift);return;
   }
   if(!g.moved&&g.btn===2){if(selUnits.size){const [x,y]=s2t(e.clientX,e.clientY);const foe=unitAtScreen(e.clientX,e.clientY,1);const us=S.units.filter(u=>selUnits.has(u.id));foe?orderAttack(us,foe):orderMove(us,x,y);}return;}
@@ -1790,7 +1930,8 @@ addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();togglePause();}
   if(!started||paused||!S||S.over)return;
   if(k==='h')centerOn(KX+1.5,KY+2.5);
-  if(k==='q'){const a=S.units.filter(u=>u.team===0);selectUnits(a);}
+  if(k==='q'){const a=S.units.filter(u=>u.team===0&&u.type!=='lord');selectUnits(a);}
+  if(k==='l'){const L=S.units.find(u=>u.id===S.lordId);if(L){selectUnits([L]);centerOn(L.x,L.y);}}
   if(k==='f')archersToWalls();
   if(k==='1'||k==='2'||k==='3'){speed=+k;$('speedBtn').textContent=speed+'×';}
 });
@@ -1830,14 +1971,14 @@ function showStart(){
     toast(`Selamat datang kembali. Hari ke-${S.day}.`);questTick();
   });
 }
-function endGame(win){
+function endGame(win,why){
   if(S.over)return;S.over=win?1:2;started=true;clearSave();sfx(win?'win':'lose');
   const sc=finalScore(win),rec=saveBest(S.diff,sc);
   if(win)showBanner('Kemenangan','Sepuluh gelombang dipukul mundur');
   $('quest').hidden=true;
-  $('card').innerHTML=`<p class="kick">${win?'Kemenangan':'Kekalahan'} · ${DIFF[S.diff].name} · hari ke-${S.day}</p><h1>${win?'Benteng bertahan':'Benteng runtuh'}</h1>
-  <p class="lede">${win?'Sepuluh gelombang telah dipukul mundur. Bendera merahmu masih berkibar di atas menara.':`Benteng Utama jatuh pada gelombang ${S.wave}. Tembok berlapis, menara di titik dangkal sungai, dan pemanah di atas tembok bisa mengubah segalanya.`}</p>
-  ${win?`<p class="stars">${starStr(sc.stars)}</p>`:''}${rec?'<p class="record">Rekor baru!</p>':''}
+  $('card').innerHTML=`<p class="kick">${win?'Kemenangan':'Kekalahan'} · ${DIFF[S.diff].name} · hari ke-${S.day}</p><h1>${win?'Benteng bertahan':why==='lord'?'Sang Penguasa gugur':'Benteng runtuh'}</h1>
+  <p class="lede">${win?'Sepuluh gelombang telah dipukul mundur. Bendera merahmu masih berkibar di atas menara.':why==='lord'?`Sang Penguasa tewas pada gelombang ${S.wave}. Tanpa pemimpin, benteng menyerah. Jaga ia di belakang barisan saat HP-nya rendah.`:`Benteng Utama jatuh pada gelombang ${S.wave}. Tembok berlapis, menara di titik dangkal sungai, dan pemanah di atas tembok bisa mengubah segalanya.`}</p>
+  ${win?`<p class="stars">${starStr(sc.stars)}</p>`:''}${rec&&(win||S.wave>=3)?'<p class="record">Rekor baru!</p>':''}
   <dl class="stats"><dt>Skor</dt><dd>${sc.score.toLocaleString('id-ID')}</dd><dt>Gelombang</dt><dd>${S.wave}/${MAX_WAVE}</dd><dt>Musuh tumbang</dt><dd>${S.kills}</dd><dt>Pasukan gugur</dt><dd>${S.lost}</dd><dt>Prajurit dilatih</dt><dd>${S.trained}</dd><dt>Rakyat</dt><dd>${S.peasants}</dd></dl>
   <button class="big" id="againBtn">Main lagi</button>`;
   setTimeout(()=>{$('toast').classList.remove('show');$('overlay').hidden=false;},win?3300:900);
@@ -1874,6 +2015,6 @@ if(window.claude?.hot){try{window.claude.hot.snapshot(()=>({save:serialize(),cam
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
 addEventListener('pagehide',saveGame);
-window.__game={get S(){return S;},buyUpgrade,repairAll,archersToWalls,canPlacePit,placeOne,finalScore,get efield(){return efield;},nextStep,BT,elevAt,orderMove,maxPop,update,newGame,canPlace,addBuilding,startWave,setStarted(v){started=v;paused=!v;$('overlay').hidden=v;}};
+window.__game={get S(){return S;},centerOn,cam,get ladderMap(){return ladderMap;},spawnUnit,buyUpgrade,repairAll,archersToWalls,canPlacePit,placeOne,finalScore,get efield(){return efield;},nextStep,BT,elevAt,orderMove,maxPop,update,newGame,canPlace,addBuilding,startWave,setStarted(v){started=v;paused=!v;$('overlay').hidden=v;}};
 })();
 </script>
