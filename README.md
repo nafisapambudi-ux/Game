@@ -7,10 +7,11 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 ## Mode
 - **Kampanye (5 misi)**, terbuka berurutan, dengan bintang per misi:
   1. *Oasis Pertama*: tutorial terpandu 14 langkah. Tombol yang harus diketuk berdenyut, panah emas menunjuk lokasi di peta, dan gelombang pertama menunggu sampai kamu siap (paling lama 6 menit).
-  2. *Sungai Kering*: palem langka, batu melimpah.
-  3. *Tiga Penyeberangan*: serangan dari utara mulai gelombang 3.
-  4. *Lembah Batu*: sedikit tanah subur, ketapel sejak gelombang 4.
-  5. *Pengepungan Besar*: 12 gelombang, tangga sejak gelombang 2.
+  2. *Sungai Kering*: sungai mengering sehingga musuh menyeberang hampir di mana saja; palem langka.
+  3. *Tiga Penyeberangan*: anak sungai di utara dengan satu titik dangkal; serangan dari utara mulai gelombang 3.
+  4. *Lembah Batu*: punggung tebing yang tak bisa dilewati, hanya dua celah; ketapel sejak gelombang 4.
+  5. *Pengepungan Besar*: 12 gelombang di sekitar danau oasis, tangga sejak gelombang 2.
+- Setiap misi dibuka dengan briefing cerita (Laskar Panji Biru melawan rakyat Oasis Wadi Hijau) dan kampanye ditutup dengan epilog.
 - **Pertempuran bebas**: 10 gelombang dengan tingkat Mudah/Normal/Sulit dan rekor skor.
 
 ## Cara bermain
@@ -27,6 +28,8 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 - Ketuk **Benteng Utama** untuk 4 peningkatan (tembok, menara, busur, zirah) dan memperbaiki semua bangunan. Bangunan rusak bisa diperbaiki dengan batu, kecuali saat musuh dekat.
 - Prajurit dilatih dengan emas + kayu. Palem tumbuh kembali perlahan di oasis.
 - Skor dan bintang (1–3) per tingkat kesulitan, rekor tersimpan di perangkat. Menu jeda: suara, cara bermain, mulai ulang.
+- Musik latar generatif (petikan ala oud di atas dengung, tabuhan rebana saat pertempuran), bisa dimatikan terpisah dari efek suara di menu jeda.
+- Kartu tujuan/tutorial bisa dilipat dengan mengetuknya.
 - Tiga tingkat kesulitan, daftar tujuan berhadiah untuk pemula, simpan otomatis tiap hari (tombol *Lanjutkan*), minimap, efek suara sintetis.
 
 ## Kontrol
