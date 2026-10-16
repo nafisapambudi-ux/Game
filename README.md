@@ -12,6 +12,10 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 - **Pemanah di atas tembok/menara**: jangkauan +2 (menara +3), panah musuh berkurang 40%, dan tombak musuh tidak bisa menjangkau.
 - **Air Mancur** menambah popularitas, jadi pajak bisa dinaikkan.
 - Musuh datang dari barat lewat tiga titik dangkal sungai. Mulai gelombang 4 ada pendobrak, gelombang 5 juga dari utara, dan gelombang 6 ada ketapel yang menembak bangunan dari jauh.
+- **Jebakan** (seret untuk memasang) tersembunyi dari musuh. **Gerbang** bisa ditaruh di atas tembok.
+- Ketuk **Benteng Utama** untuk 4 peningkatan (tembok, menara, busur, zirah) dan memperbaiki semua bangunan. Bangunan rusak bisa diperbaiki dengan batu, kecuali saat musuh dekat.
+- Prajurit dilatih dengan emas + kayu. Palem tumbuh kembali perlahan di oasis.
+- Skor dan bintang (1–3) per tingkat kesulitan, rekor tersimpan di perangkat. Menu jeda: suara, cara bermain, mulai ulang.
 - Tiga tingkat kesulitan, daftar tujuan berhadiah untuk pemula, simpan otomatis tiap hari (tombol *Lanjutkan*), minimap, efek suara sintetis.
 
 ## Kontrol
@@ -22,4 +26,7 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 | Pilih pasukan | ketuk prajurit, "Semua pasukan", atau "Pilih kotak" | klik, atau seret kotak |
 | Gerak / serang | ketuk tanah / ketuk musuh | klik kiri atau kanan |
 | Pindah cepat | ketuk peta kecil / penunjuk musuh | sama |
-| Jeda | tombol Jeda | Spasi |
+| Pemanah ke tembok | tombol | F |
+| Semua pasukan / ke benteng | tombol / peta kecil | Q / H |
+| Kecepatan | tombol 1× | 1, 2, 3 |
+| Jeda / menu | tombol Jeda | Spasi, Esc |

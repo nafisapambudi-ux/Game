@@ -102,6 +102,18 @@ button:disabled{opacity:.42;cursor:not-allowed}
 .card .ghost small{display:block;font-weight:500;color:var(--muted);font-size:12px}
 .wcomp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .note:empty,.wcomp:empty{display:none}
+.acts.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.row3{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.row3 .warn{margin-top:0}
+.fix{background:var(--panel-hi);border:1px solid var(--gold);color:var(--gold);border-radius:6px;padding:6px 12px;font-weight:700}
+.sec{margin:12px 0 0;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.menu{display:flex;flex-direction:column;gap:8px;max-width:320px;margin-top:18px}
+.menu button{text-align:center}
+#helpBox{margin-top:16px}
+.stars{font-size:34px;letter-spacing:.12em;color:var(--gold);margin:10px 0 0;line-height:1}
+.stars i{font-style:normal;color:rgba(228,183,92,.25)}
+.record{color:var(--ok);font-weight:800;margin:6px 0 0}
+.diff button em{font-style:normal;color:var(--gold);font-size:11.5px;font-weight:700;margin-top:2px}
 .wcomp span{background:rgba(53,83,168,.25);border:1px solid #4a63a8;border-radius:4px;padding:3px 8px;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
 .big2{margin-top:10px;background:var(--crimson);color:#fff;font-weight:800;padding:8px 14px;border-radius:6px;border:1px solid #e0796f}
 #hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 150px);background:rgba(20,13,7,.85);padding:6px 12px;border-radius:6px;font-size:13px;color:var(--parch);pointer-events:none;max-width:calc(100% - 32px);text-align:center;box-sizing:border-box}
@@ -149,8 +161,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
   <div class="tools">
     <button class="tbtn" id="armyBtn">Semua pasukan</button>
     <button class="tbtn" id="boxBtn">Pilih kotak</button>
-    <button class="tbtn" id="homeBtn">Ke benteng</button>
-    <button class="tbtn" id="soundBtn">Suara</button>
+    <button class="tbtn" id="wallBtn">Pemanah ke tembok</button>
   </div>
   <div class="build" id="build"></div>
 </div>
@@ -188,7 +199,7 @@ function makeNoise(r,cell){
 
 // ================= definitions =================
 const BT={
-  keep:    {name:'Benteng Utama', w:3,h:3,hp:1600, desc:'Jantung kerajaanmu. Jika runtuh, kamu kalah.'},
+  keep:    {name:'Benteng Utama', w:3,h:3,hp:2000, desc:'Jantung kerajaanmu. Jika runtuh, kamu kalah.'},
   house:   {name:'Rumah',        w:2,h:2,hp:180, cost:{wood:8},           time:4, desc:'Menambah 8 batas rakyat.'},
   wood:    {name:'Penebang',     w:2,h:2,hp:150, cost:{wood:4},           time:4, worker:1, desc:'Menebang palem terdekat. Tiap angkut +4 kayu.'},
   quarry:  {name:'Tambang Batu', w:2,h:2,hp:220, cost:{wood:12},          time:5, worker:1, desc:'Harus berdiri di atas batu. +4 batu tiap 10 detik.'},
@@ -197,16 +208,18 @@ const BT={
   fountain:{name:'Air Mancur',   w:2,h:2,hp:200, cost:{stone:12},         time:4, desc:'+1 popularitas tiap hari (paling banyak +4).'},
   barracks:{name:'Barak',        w:3,h:3,hp:420, cost:{wood:10,stone:15}, time:6, desc:'Latih rakyat menjadi pasukan.'},
   wall:    {name:'Tembok',       w:1,h:1,hp:260, cost:{stone:2},          time:1, desc:'Seret untuk membangun. Pemanah bisa berdiri di atasnya.'},
-  gate:    {name:'Gerbang',      w:1,h:1,hp:450, cost:{stone:10,wood:4},  time:2, desc:'Jalan keluar-masuk pasukanmu, tertutup bagi musuh.'},
+  gate:    {name:'Gerbang',      w:1,h:1,hp:450, cost:{stone:10,wood:4},  time:2, desc:'Jalan keluar-masuk pasukanmu, tertutup bagi musuh. Bisa ditaruh di atas tembok.'},
   tower:   {name:'Menara',       w:2,h:2,hp:650, cost:{stone:25},         time:6, desc:'Memanah musuh dalam 7 petak. Pemanah di atasnya menembak lebih jauh.'},
+  pit:     {name:'Jebakan',      w:1,h:1,hp:1,   cost:{wood:5},           time:0, desc:'Lubang berpasak, tak terlihat musuh. Melukai 2 musuh yang menginjaknya. Seret untuk memasang.'},
 };
-const BUILD_ORDER=['house','wood','quarry','farm','barracks','wall','gate','tower','market','fountain'];
+const BUILD_ORDER=['house','wood','quarry','farm','barracks','wall','gate','tower','pit','market','fountain'];
+const LINE={wall:1,pit:1};
 const UT={
-  spear: {name:'Tombak',    hp:60, dmg:9,  range:0.85, speed:1.7, cd:1.0, cost:8,  bdmg:6},
-  archer:{name:'Pemanah',   hp:34, dmg:7,  range:5.5,  speed:1.6, cd:1.6, cost:12, bdmg:2, ranged:1},
-  knight:{name:'Ksatria',   hp:170,dmg:17, range:0.95, speed:2.6, cd:1.1, cost:40, bdmg:10},
+  spear: {name:'Tombak',    hp:60, dmg:9,  range:0.85, speed:1.7, cd:1.0, cost:6,  wood:3,  bdmg:6},
+  archer:{name:'Pemanah',   hp:34, dmg:7,  range:5.5,  speed:1.6, cd:1.6, cost:9,  wood:5,  bdmg:2, ranged:1},
+  knight:{name:'Ksatria',   hp:170,dmg:17, range:0.95, speed:2.6, cd:1.1, cost:32, wood:8,  bdmg:6},
   ram:   {name:'Pendobrak', hp:320,dmg:0,  range:0.9,  speed:0.6, cd:2.4, bdmg:70, siege:1},
-  catapult:{name:'Ketapel',  hp:110,dmg:0,  range:8,    speed:0.55,cd:4.5, bdmg:45, siege:1, artillery:1},
+  catapult:{name:'Ketapel',  hp:110,dmg:0,  range:7,    speed:0.55,cd:4.5, bdmg:45, siege:1, artillery:1},
 };
 const ELEV={wall:32,gate:40,tower:74};
 const BH={keep:66,house:24,wood:22,quarry:8,farm:4,market:18,barracks:40,wall:32,gate:40,tower:74,fountain:12};
@@ -215,7 +228,13 @@ const DIFF=[
   {name:'Normal',desc:'Tantangan seimbang, persiapan 3:20', mul:1, first:200, hp:1},
   {name:'Sulit', desc:'Gelombang besar, musuh lebih tangguh', mul:1.35, first:160, hp:1.15},
 ];
-const SAVE_KEY='benteng-gurun-save-v1';
+const SAVE_KEY='benteng-gurun-save-v1',BEST_KEY='benteng-gurun-best-v1';
+const UPG={
+  walls: {name:'Tembok Tebal',   desc:'HP tembok dan gerbang +40%',               cost:[{stone:40},{stone:90}]},
+  towers:{name:'Menara Pemanah', desc:'Menara +1 jangkauan, +3 kerusakan, HP +30%',cost:[{stone:50},{stone:100,gold:40}]},
+  bows:  {name:'Busur Komposit', desc:'Pemanahmu +2 kerusakan',                   cost:[{wood:60,gold:30},{wood:120,gold:60}]},
+  armor: {name:'Zirah Rantai',   desc:'Tombak dan Ksatria menerima 15% lebih sedikit kerusakan',cost:[{stone:40,gold:40},{stone:80,gold:80}]},
+};
 const TAX=[
   {name:'Tanpa pajak', gold:0,   pop:+3},
   {name:'Rendah',      gold:0.8, pop:0},
@@ -271,7 +290,7 @@ function newGame(seed,diff){
   const g=genMap(seed);
   S={seed,t:0,map:g.map,tree:g.tree,occ:new Array(N*N).fill(0),buildings:[],units:[],proj:[],fx:[],nid:1,
     res:{gold:150,wood:70,stone:30,food:50},peasants:8,pop:60,tax:1,dayT:0,day:1,wave:0,waveT:200,spawnQ:[],
-    kills:0,lost:0,over:0,foodOk:true,warned:false,lastTaxGold:0,lastFood:0,diff:diff??1,trained:0,quest:0,next:null};
+    kills:0,lost:0,over:0,foodOk:true,warned:false,lastTaxGold:0,lastFood:0,diff:diff??1,trained:0,quest:0,next:null,traps:[],up:{walls:0,towers:0,bows:0,armor:0},pits:0};
   S.waveT=DIFF[S.diff].first;S.next=planWave(1);
   addBuilding('keep',KX,KY,true);
   const start=[['spear',KX-1.2,KY+3.8],['spear',KX-0.6,KY+4.5],['spear',KX+3.8,KY+3.6],['spear',KX+4.4,KY+4.3],['archer',KX+0.4,KY+5.4],['archer',KX+2.8,KY+5.4]];
@@ -283,7 +302,7 @@ function newGame(seed,diff){
 function serialize(){return JSON.stringify(S);}
 function deserialize(s){
   S=typeof s==='string'?JSON.parse(s):s;
-  S.diff??=1;S.trained??=0;S.quest??=0;if(S.waveT==null)S.waveT=1e9;
+  S.diff??=1;S.trained??=0;S.quest??=0;S.traps??=[];S.up??={walls:0,towers:0,bows:0,armor:0};S.pits??=0;if(S.waveT==null)S.waveT=1e9;
   reindex();fieldDirty=true;fieldCache.clear();
   if(!S.next&&S.wave<MAX_WAVE)S.next=planWave(S.wave+1);
 }
@@ -292,11 +311,33 @@ function loadSave(){try{const t=localStorage.getItem(SAVE_KEY);if(!t)return null
 function clearSave(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
 
 // ================= buildings =================
-function costOk(c){for(const k in c)if((S.res[k]||0)<c[k])return false;return true;}
+function hpMult(type){const u=S.up||{};if(type==='wall'||type==='gate')return 1+0.4*(u.walls||0);if(type==='tower')return 1+0.3*(u.towers||0);return 1;}
+function towerRange(){return 7.5+(S.up?S.up.towers:0);}
+function repairCost(b){return b.built<1?0:Math.ceil((b.maxhp-b.hp)/25);}
+function enemyNear(b,r){for(const e of S.units)if(e.team===1&&rectDist(e,b)<r)return true;return false;}
+function repairBuilding(b){const c=repairCost(b);if(!c||S.res.stone<c||enemyNear(b,5))return false;S.res.stone-=c;b.hp=b.maxhp;S.fx.push({k:'dust',x:b.i+b.w/2,y:b.j+b.h/2,t:0,life:0.6});fieldDirty=true;return true;}
+function repairAll(){let n=0;const list=S.buildings.filter(b=>repairCost(b)>0).sort((a,b)=>(a.hp/a.maxhp)-(b.hp/b.maxhp));for(const b of list)if(repairBuilding(b))n++;return n;}
+function buyUpgrade(k){
+  const lv=S.up[k];const c=UPG[k].cost[lv];if(!c||!costOk(c))return false;pay(c);S.up[k]++;
+  for(const b of S.buildings){const nm=Math.round(BT[b.type].hp*hpMult(b.type));if(nm!==b.maxhp){b.hp+=nm-b.maxhp;b.maxhp=nm;}}
+  fieldDirty=true;sfx('coin');toast(`${UPG[k].name} tingkat ${S.up[k]} selesai.`);return true;
+}
+function canPlacePit(i,j){
+  if(i<1||j<1||i>N-2||j>N-2)return 'Terlalu dekat tepi peta';
+  const k=idx(i,j),m=S.map[k];
+  if(m===T_WATER||m===T_FORD)return 'Tidak bisa memasang jebakan di air';
+  if(S.occ[k])return 'Tempat sudah terpakai';
+  if(S.traps.some(q=>q.i===i&&q.j===j))return 'Sudah ada jebakan';
+  if(Math.abs(i+.5-FIRE.x)<1&&Math.abs(j+.5-FIRE.y)<1)return 'Itu api unggun rakyat';
+  return '';
+}
+function placeCheck(type,i,j){return type==='pit'?canPlacePit(i,j):canPlace(type,i,j);}
+function costOk(c,res){res=res||S.res;for(const k in c)if((res[k]||0)<c[k])return false;return true;}
 function pay(c){for(const k in c)S.res[k]-=c[k];}
 function addBuilding(type,i,j,instant){
   const t=BT[type];
-  const b={id:S.nid++,type,i,j,w:t.w,h:t.h,hp:t.hp,maxhp:t.hp,built:instant?1:0,prog:0,hasW:false,queue:[],trainT:0,cd:0,wk:null};
+  const mh=Math.round(t.hp*hpMult(type));
+  const b={id:S.nid++,type,i,j,w:t.w,h:t.h,hp:mh,maxhp:mh,built:instant?1:0,prog:0,hasW:false,queue:[],trainT:0,cd:0,wk:null};
   S.buildings.push(b);bmap.set(b.id,b);
   let felled=0;
   for(let y=j;y<j+t.h;y++)for(let x=i;x<i+t.w;x++){const k=idx(x,y);S.occ[k]=b.id;if(S.tree[k]){S.tree[k]=0;felled++;}}
@@ -320,18 +361,19 @@ function removeBuilding(b,destroyed){
 function canPlace(type,i,j){
   const t=BT[type];
   if(i<1||j<1||i+t.w>N-1||j+t.h>N-1)return 'Terlalu dekat tepi peta';
-  let rock=0,grass=0;
+  let rock=0,grass=0;const ex0=S.occ[idx(i,j)]?bmap.get(S.occ[idx(i,j)]):null,rep=type==='gate'&&ex0&&ex0.type==='wall';
   for(let y=j;y<j+t.h;y++)for(let x=i;x<i+t.w;x++){
     const k=idx(x,y),m=S.map[k];
     if(m===T_WATER||m===T_FORD)return 'Tidak bisa membangun di air';
-    if(S.occ[k])return 'Tempat sudah terpakai';
+    if(S.occ[k]&&!rep)return 'Tempat sudah terpakai';
+    if(S.traps&&S.traps.some(q=>q.i===x&&q.j===y))return 'Ada jebakan di situ';
     if(Math.abs(x+.5-FIRE.x)<1&&Math.abs(y+.5-FIRE.y)<1)return 'Itu api unggun rakyat';
     if(m===T_ROCK)rock++;if(m===T_GRASS)grass++;
   }
   if(type==='quarry'&&!rock)return 'Tambang harus di atas batu abu-abu';
   if(type!=='quarry'&&rock&&type!=='wall'&&type!=='tower'&&type!=='gate')return 'Hanya tambang yang bisa di atas batu';
   if(type==='farm'&&grass<5)return 'Kebun butuh tanah oasis hijau';
-  for(const u of S.units){if(u.x>i-.2&&u.x<i+t.w+.2&&u.y>j-.2&&u.y<j+t.h+.2)return 'Ada pasukan di situ';}
+  if(!rep)for(const u of S.units){if(u.x>i-.2&&u.x<i+t.w+.2&&u.y>j-.2&&u.y<j+t.h+.2)return 'Ada pasukan di situ';}
   return '';
 }
 
@@ -439,13 +481,13 @@ function rectDist(u,b){
 function faceTo(u,x,y){const s=(x-u.x)-(y-u.y);if(Math.abs(s)>0.01)u.face=s>0?1:-1;}
 function attackUnit(u,t){
   const ut=UT[u.type];faceTo(u,t.x,t.y);
-  if(u.cd>0)return;u.cd=ut.cd*(0.9+Math.random()*0.2);u.atk=0.25;
-  if(ut.ranged)shoot(u.x,u.y,16,t.id,ut.dmg,u.team,u.id);
+  if(u.cd>0)return;u.cd=ut.cd*(0.9+Math.random()*0.2);u.atk=0.25;u.lastAtk=S.t;
+  if(ut.ranged)shoot(u.x,u.y,16+elevAt(u.x,u.y),t.id,ut.dmg+(u.team===0&&u.type==='archer'?2*S.up.bows:0),u.team,u.id);
   else{damageUnit(t,ut.dmg*(0.85+Math.random()*0.3),u,false);sfx('hit',u.x,u.y);}
 }
 function attackBuilding(u,b){
   const ut=UT[u.type];faceTo(u,b.i+b.w/2,b.j+b.h/2);
-  if(u.cd>0)return;u.cd=ut.cd*(0.9+Math.random()*0.2);u.atk=0.3;
+  if(u.cd>0)return;u.cd=ut.cd*(0.9+Math.random()*0.2);u.atk=0.3;u.lastAtk=S.t;
   damageBuilding(b,ut.bdmg);
   if(ut.siege)S.fx.push({k:'dust',x:u.x,y:u.y,t:0,life:0.6});
 }
@@ -453,6 +495,7 @@ function damageUnit(t,dmg,src,ranged){
   if(t.type==='knight'&&ranged)dmg*=0.55;
   if(t.type==='ram')dmg*=ranged?0.25:1;
   if(t.type==='catapult'&&ranged)dmg*=0.5;
+  if(t.team===0&&(t.type==='spear'||t.type==='knight'))dmg*=1-0.15*S.up.armor;
   if(ranged&&elevAt(t.x,t.y))dmg*=0.6;
   t.hp-=dmg;t.lastHit=S.t;
   particles(t.x,t.y,10+elevAt(t.x,t.y),2,UT[t.type].siege?'#7a5430':'#9b1c12',1.2);
@@ -477,7 +520,7 @@ function enemyAI(u,dt){
   if(ut.artillery){
     if((u.scan-=dt)<=0){u.scan=0.6;let best=null,bd=ut.range;for(const b of S.buildings){const d=rectDist(u,b);if(d<bd){bd=d;best=b;}}u.btgt=best?best.id:0;}
     const b=u.btgt?bmap.get(u.btgt):null;
-    if(b){faceTo(u,b.i+b.w/2,b.j+b.h/2);if(u.cd<=0){u.cd=ut.cd*(0.9+Math.random()*0.2);u.atk=0.6;lob(u,b);}return;}
+    if(b){faceTo(u,b.i+b.w/2,b.j+b.h/2);if(u.cd<=0){u.cd=ut.cd*(0.9+Math.random()*0.2);u.atk=0.6;u.lastAtk=S.t;lob(u,b);}return;}
     u.btgt=0;if(!efield)return;
     const st=nextStep(u,efield,1);if(st&&!S.occ[idx(st[0],st[1])])stepTo(u,st[0]+.5,st[1]+.5,dt);
     return;
@@ -630,9 +673,9 @@ function updateBuilding(b,dt){
   }
   if(b.type==='tower'||b.type==='keep'){
     b.cd-=dt;if(b.cd>0)return;
-    const cx=b.i+b.w/2,cy=b.j+b.h/2,R=b.type==='tower'?7.5:6;let best=null,bd=R*R;
+    const cx=b.i+b.w/2,cy=b.j+b.h/2,R=b.type==='tower'?towerRange():6;let best=null,bd=R*R;
     for(const e of S.units){if(e.team!==1)continue;const d=(e.x-cx)**2+(e.y-cy)**2;if(d<bd){bd=d;best=e;}}
-    if(best){b.cd=b.type==='tower'?1.3:1.8;shoot(cx,cy,b.type==='tower'?72:86,best.id,b.type==='tower'?9:6,0,0);}
+    if(best){b.cd=b.type==='tower'?1.3:1.8;shoot(cx,cy,b.type==='tower'?72:86,best.id,b.type==='tower'?9+3*S.up.towers:8,0,0);}
     return;
   }
   if(b.type==='barracks'&&b.queue.length){
@@ -662,6 +705,8 @@ function dailyTick(){
   if(S.pop>=50&&S.peasants<mp){S.peasants=Math.min(mp,S.peasants+1+Math.floor((S.pop-50)/20));}
   else if(S.pop<40&&S.peasants>0){S.peasants=Math.max(0,S.peasants-(S.pop<15?2:1));toast('Rakyat meninggalkan bentengmu.',true);}
   S.day++;
+  // palms slowly reseed on the oasis
+  for(let n=0;n<10;n++){const k=(Math.random()*N*N)|0;if(S.map[k]===T_GRASS&&!S.tree[k]&&!S.occ[k]&&!S.traps.some(q=>idx(q.i,q.j)===k))S.tree[k]=8;}
   saveGame();
 }
 function countBuilt(type){let n=0;for(const b of S.buildings)if(b.type===type&&b.built>=1)n++;return n;}
@@ -671,7 +716,7 @@ function fountainBonus(){return Math.min(4,countBuilt('fountain'));}
 function planWave(n){
   const m=DIFF[S.diff].mul,c={
     spear:Math.round((3+2*n)*m),archer:Math.round(Math.floor(n*1.4)*m),
-    knight:n>=3?Math.round((n-2)*m):0,ram:n>=4?Math.max(1,Math.round(Math.floor((n-2)/2)*m)):0,
+    knight:n>=3?Math.round((n-2)*0.75*m):0,ram:n>=4?Math.max(1,Math.round(Math.floor((n-2)/2)*m)):0,
     catapult:n>=6?Math.max(1,Math.round(Math.floor((n-4)/2)*m)):0};
   return {n,c,split:n>=5&&n%2===1,cj:6+Math.floor(Math.random()*32)};
 }
@@ -713,8 +758,23 @@ function update(dt){
   for(const b of [...S.buildings]){if(bmap.has(b.id))updateBuilding(b,dt);if(S.over)return;}
   for(const u of S.units){
     if(u.hp<=0)continue;u.cd-=dt;u.atk=Math.max(0,u.atk-dt);
-    if(u.team===1)enemyAI(u,dt);else playerAI(u,dt);
+    if(u.team===1){enemyAI(u,dt);
+      // safety net: an enemy that neither moves nor fights for 30 s gives up and leaves
+      if(!u.chk||S.t-u.chk.t>10){if(u.chk&&Math.hypot(u.x-u.chk.x,u.y-u.chk.y)<0.3&&S.t-(u.lastAtk||0)>10&&!S.buildings.some(x=>rectDist(u,x)<6)&&!S.units.some(p=>p.team===0&&Math.hypot(p.x-u.x,p.y-u.y)<6))u.idleN=(u.idleN||0)+1;else u.idleN=0;u.chk={x:u.x,y:u.y,t:S.t};
+        if(u.idleN>=3){u.hp=0;u.fled=1;floatText(u.x,u.y,'mundur','#9fb4ff');}}
+    }else playerAI(u,dt);
     if(S.over)return;
+  }
+  // traps
+  if(S.traps.length){
+    const tmap=new Map();for(const q of S.traps)tmap.set(idx(q.i,q.j),q);
+    for(const u of S.units){
+      if(u.team!==1||u.hp<=0||u.type==='catapult')continue;
+      const q=tmap.get(idx(u.x|0,u.y|0));
+      if(q&&q.uses>0&&(!u.trapT||S.t-u.trapT>1.5)){u.trapT=S.t;q.uses--;q.seen=1;damageUnit(u,u.type==='ram'?90:55,null,false);
+        particles(u.x,u.y,6,5,'#9b1c12',1.5);S.fx.push({k:'dust',x:u.x,y:u.y,t:0,life:0.6});sfx('hit',u.x,u.y);}
+    }
+    S.traps=S.traps.filter(q=>q.uses>0);
   }
   // separation
   const us=S.units;
@@ -747,6 +807,7 @@ function update(dt){
   S.proj=S.proj.filter(p=>!p.done);
   // deaths
   for(const u of S.units)if(u.hp<=0){
+    if(u.fled)continue;
     S.fx.push({k:'corpse',x:u.x,y:u.y,t:0,life:9,team:u.team,type:u.type,face:u.face});
     sfx('die',u.x,u.y);
     if(u.team===1){S.kills++;S.res.gold+=3;}else{S.lost++;selUnits.delete(u.id);}
@@ -908,6 +969,14 @@ function isWallish(i,j){if(!inb(i,j))return false;const id=S.occ[idx(i,j)];if(!i
 function drawBuilding(c,b,tm,ghost){
   const {i,j,w,h}=b;const t=b.type;
   if(!ghost)shadow(c,i+w/2,j+h/2,w*HW*0.75,h*HH*0.75);
+  if(t==='pit'){
+    const A=iso(i+.12,j+.12),B=iso(i+.88,j+.12),C=iso(i+.88,j+.88),D=iso(i+.12,j+.88);
+    poly(c,[A,B,C,D],b.seen?'rgba(40,24,10,.85)':'rgba(92,66,34,.6)');
+    c.strokeStyle=b.seen?'#8a6238':'#c9a46a';c.lineWidth=1;
+    for(let k=1;k<4;k++){const p=iso(i+k*.25,j+.14),q=iso(i+k*.25,j+.86);c.beginPath();c.moveTo(p[0],p[1]);c.lineTo(q[0],q[1]);c.stroke();}
+    if(b.seen){c.fillStyle='#d8c39a';for(let k=0;k<4;k++){const p=iso(i+.3+(k%2)*.4,j+.3+(k>>1)*.4);c.beginPath();c.moveTo(p[0]-1.5,p[1]);c.lineTo(p[0],p[1]-7);c.lineTo(p[0]+1.5,p[1]);c.fill();}}
+    return;
+  }
   if(t==='keep'){
     const x=i+.35,y=j+.35,s=2.3;
     cyl(c,x,y,.5,0,82,STONE,10);
@@ -1168,9 +1237,10 @@ function render(tm){
     else if(f.k==='arrow'&&vis(f.x,f.y)){const p=iso(f.x,f.y),a=Math.min(1,(f.life-f.t));ctx.globalAlpha=a;ctx.strokeStyle='#4a3420';ctx.lineWidth=1;const dx=(f.a-.5)*6;ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(p[0]+dx,p[1]-7);ctx.stroke();ctx.fillStyle='#e9dcc0';ctx.fillRect(p[0]+dx-1,p[1]-8,2,2);ctx.globalAlpha=1;}
     else if(f.k==='mark'){const p=iso(f.x,f.y),k=f.t/f.life;ctx.strokeStyle=f.c;ctx.globalAlpha=1-k;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p[0],p[1]-(f.z||0),14*(1-k)+4,7*(1-k)+2,0,0,7);ctx.stroke();ctx.globalAlpha=1;}
   }
+  for(const q of S.traps)if(vis(q.i+.5,q.j+.5))drawBuilding(ctx,{type:'pit',i:q.i,j:q.j,w:1,h:1,seen:q.seen},tm,true);
   // selected building footprint
   if(selB){const b=bmap.get(selB);if(b){const A=iso(b.i,b.j),B=iso(b.i+b.w,b.j),C=iso(b.i+b.w,b.j+b.h),D=iso(b.i,b.j+b.h);ctx.strokeStyle='#e4b75c';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.lineTo(C[0],C[1]);ctx.lineTo(D[0],D[1]);ctx.closePath();ctx.stroke();ctx.setLineDash([]);
-    if(b.type==='tower'||b.type==='keep'){const p=iso(b.i+b.w/2,b.j+b.h/2),R=b.type==='tower'?7.5:6;ctx.strokeStyle='rgba(228,183,92,.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(p[0],p[1],R*HW*1.414,R*HH*1.414,0,0,7);ctx.stroke();}
+    if(b.type==='tower'||b.type==='keep'){const p=iso(b.i+b.w/2,b.j+b.h/2),R=b.type==='tower'?towerRange():6;ctx.strokeStyle='rgba(228,183,92,.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(p[0],p[1],R*HW*1.414,R*HH*1.414,0,0,7);ctx.stroke();}
     if(b.type==='wood'){const p=iso(b.i+b.w/2,b.j+b.h/2),R=9;ctx.strokeStyle='rgba(140,191,106,.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(p[0],p[1],R*HW*1.414,R*HH*1.414,0,0,7);ctx.stroke();}
   }}
   // ghost footprints
@@ -1212,6 +1282,11 @@ function render(tm){
     else if(o.k===6){ctx.globalAlpha=0.6;drawBuilding(ctx,{type:ghost.type,i:ghost.i,j:ghost.j,w:BT[ghost.type].w,h:BT[ghost.type].h,hp:1,maxhp:1,built:1},tm,true);ctx.globalAlpha=1;}
   }
   if(ghost&&ghost.line){ctx.globalAlpha=0.6;for(const g of ghost.line)drawBuilding(ctx,{type:ghost.type,i:g.i,j:g.j,w:1,h:1,hp:1,maxhp:1,built:1},tm,true);ctx.globalAlpha=1;}
+  if(ghost&&!ghost.line&&!ghost.ok&&ghost.why){
+    const t=BT[ghost.type],p=iso(ghost.i+t.w/2,ghost.j+t.h/2),y=p[1]-t.h*HH-40;
+    ctx.font='800 12px "Alegreya Sans",sans-serif';ctx.textAlign='center';const w=ctx.measureText(ghost.why).width+14;
+    ctx.fillStyle='rgba(30,18,8,.9)';ctx.fillRect(p[0]-w/2,y-13,w,19);ctx.fillStyle='#ffb3a3';ctx.fillText(ghost.why,p[0],y+1);
+  }
   // projectiles
   ctx.strokeStyle='#3a2a1a';ctx.lineWidth=1.3;
   for(const p of S.proj){if(p.kind==='rock'){drawRock(p);continue;}if(!p.init)continue;const k=Math.min(1,p.t/p.dur),x=p.sx+(p.tx-p.sx)*k,y=p.sy+(p.ty-p.sy)*k;
@@ -1337,7 +1412,7 @@ function sfx(name,x,y){
     case 'lose':horn(t,[196,165,131],0.28);break;
   }}catch(e){}
 }
-function setMuted(m){muted=m;try{localStorage.setItem('benteng-gurun-muted',m?'1':'0');}catch(e){}if(master)master.gain.value=m?0:0.5;const b=document.getElementById('soundBtn');b.textContent=m?'Suara mati':'Suara';b.classList.toggle('on',!m);}
+function setMuted(m){muted=m;try{localStorage.setItem('benteng-gurun-muted',m?'1':'0');}catch(e){}if(master)master.gain.value=m?0:0.5;const b=document.getElementById('soundBtn');if(b)b.textContent=m?'Suara: mati':'Suara: hidup';}
 document.addEventListener('pointerdown',()=>{if(started)audioInit();},true);
 document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('button'))sfx('click');},true);
 
@@ -1375,6 +1450,8 @@ const QUESTS=[
   {t:'Latih 4 prajurit di Barak',check:()=>S.trained>=4,prog:()=>`${Math.min(4,S.trained)}/4`,rw:{stone:20}},
   {t:'Bangun Menara dekat titik dangkal sungai',check:()=>countBuilt('tower')>=1,rw:{gold:40}},
   {t:'Tempatkan Pemanah di atas tembok atau menara',check:()=>S.units.some(u=>u.team===0&&u.type==='archer'&&elevAt(u.x,u.y)>0),rw:{gold:30}},
+  {t:'Pasang 3 Jebakan di jalur musuh',check:()=>S.pits>=3,prog:()=>`${Math.min(3,S.pits)}/3`,rw:{gold:25}},
+  {t:'Beli peningkatan di Benteng Utama',check:()=>Object.values(S.up).some(v=>v>0),rw:{stone:30}},
   {t:'Pukul mundur gelombang ketiga',check:()=>S.wave>=3&&!S.spawnQ.length&&!S.units.some(u=>u.team===1),rw:{gold:60}},
 ];
 function questTick(){
@@ -1406,7 +1483,7 @@ function setBuild(t){
   buildType=t;ghost=null;
   for(const el of document.querySelectorAll('.bb'))el.classList.toggle('on',el.dataset.t===t);
   if(t){selUnits.forEach(id=>{const u=umap.get(id)||S.units.find(x=>x.id===id);if(u)u.sel=false;});selUnits.clear();selB=0;closePanel();
-    showHint(t==='wall'?'Seret di peta untuk membangun tembok. Geser peta dengan dua jari.':`${BT[t].desc} Ketuk peta untuk menaruh. Geser peta dengan dua jari.`);}
+    showHint(LINE[t]?`Seret di peta untuk memasang ${BT[t].name.toLowerCase()}. Geser peta dengan dua jari.`:`${BT[t].desc} Ketuk peta untuk menaruh. Geser peta dengan dua jari.`);}
   else hideHint();
   boxMode=false;$('boxBtn').classList.remove('on');
 }
@@ -1424,7 +1501,7 @@ function openBuildingPanel(b){
   let h=`<div class="ph"><img alt="" src="${ICONS[b.type]}"><div><h3>${t.name}</h3><p data-v="status">${t.desc}</p></div><button class="x" data-act="close" aria-label="Tutup">×</button></div><div class="hpbar"><i data-v="hp"></i></div>`;
   if(b.type==='barracks'){
     h+='<div class="acts">';
-    for(const u of ['spear','archer','knight'])h+=`<button class="act" data-act="train" data-t="${u}"><img alt="" src="${ICONS['u_'+u]}"><span>${UT[u].name}</span><small>${UT[u].cost} emas · 1 rakyat</small></button>`;
+    for(const u of ['spear','archer','knight'])h+=`<button class="act" data-act="train" data-t="${u}"><img alt="" src="${ICONS['u_'+u]}"><span>${UT[u].name}</span><small>${UT[u].cost} emas · ${UT[u].wood} kayu</small></button>`;
     h+='</div><p class="note" data-v="queue"></p>';
   }
   if(b.type==='market'){
@@ -1432,8 +1509,11 @@ function openBuildingPanel(b){
       [['sell','wood',10,5],['sell','stone',10,7],['sell','food',10,5],['buy','wood',10,10],['buy','stone',10,14],['buy','food',10,12]]
       .map(([a,r,n,g])=>`<button class="act" data-act="${a}" data-r="${r}" data-n="${n}" data-g="${g}"><span>${a==='sell'?'Jual':'Beli'} ${n} ${RES_NAME[r]}</span><small>${a==='sell'?'+':'−'}${g} emas</small></button>`).join('')+'</div>';
   }
-  if(b.type==='keep')h+=`<dl class="facts"><dt>Hari</dt><dd data-v="day"></dd><dt>Musuh tumbang</dt><dd data-v="kills"></dd><dt>Pasukan gugur</dt><dd data-v="lost"></dd></dl>`;
-  if(b.type!=='keep')h+=`<button class="warn" data-act="demolish">Bongkar (kembali 50%)</button>`;
+  if(b.type==='keep'){
+    h+=`<dl class="facts"><dt>Hari</dt><dd data-v="day"></dd><dt>Musuh tumbang</dt><dd data-v="kills"></dd><dt>Pasukan gugur</dt><dd data-v="lost"></dd></dl>`;
+    h+='<p class="sec">Peningkatan</p><div class="acts two">'+Object.entries(UPG).map(([k,u])=>`<button class="act" data-act="upg" data-k="${k}" title="${u.desc}"><span data-v="un-${k}">${u.name}</span><small data-v="ud-${k}">${u.desc}</small><small data-v="uc-${k}"></small></button>`).join('')+'</div>';
+  }
+  h+=`<div class="row3"><button class="fix" data-act="${b.type==='keep'?'repairall':'repair'}"><span data-v="rlabel">Perbaiki</span></button>${b.type!=='keep'?'<button class="warn" data-act="demolish">Bongkar (kembali 50%)</button>':''}</div>`;
   panel.innerHTML=h;panel.hidden=false;updatePanel();
 }
 function openUnitsPanel(){
@@ -1464,9 +1544,16 @@ function updatePanel(){
     else if(BT[b.type].worker&&!b.hasW)st='Tidak ada rakyat menganggur untuk bekerja di sini.';
     else if(b.status)st=b.status;
     setV('status',st);
+    const fx=panel.querySelector('[data-act="repair"],[data-act="repairall"]');
+    if(fx){
+      if(b.type==='keep'){const tot=S.buildings.reduce((a,x)=>a+repairCost(x),0);fx.hidden=!tot;setV('rlabel',`Perbaiki semua bangunan · ${tot} batu`);fx.disabled=S.res.stone<1;}
+      else{const c=repairCost(b),near=c&&enemyNear(b,5);fx.hidden=!c;setV('rlabel',near?'Tidak bisa diperbaiki saat musuh dekat':`Perbaiki · ${c} batu`);fx.disabled=near||S.res.stone<c;}
+    }
+    if(b.type==='keep')for(const k in UPG){const lv=S.up[k],c=UPG[k].cost[lv],el=panel.querySelector(`[data-act="upg"][data-k="${k}"]`);
+      setV('un-'+k,`${UPG[k].name} ${lv}/2`);setV('uc-'+k,c?costText(c):'Sudah maksimal');el.disabled=!c||!costOk(c);el.classList.toggle('sel',lv>0);}
     if(b.type==='barracks'){
-      setV('queue',b.queue.length?`Dalam latihan: ${b.queue.length} (${b.queue.map(q=>UT[q].name).join(', ')})`:`Rakyat menganggur: ${S.idle}. Tiap prajurit butuh 1 rakyat.`);
-      for(const el of panel.querySelectorAll('[data-act="train"]'))el.disabled=b.built<1||S.res.gold<UT[el.dataset.t].cost||S.idle<1;
+      setV('queue',b.queue.length?`Dalam latihan: ${b.queue.length} (${b.queue.map(q=>UT[q].name).join(', ')})`:`Rakyat menganggur: ${S.idle}. Tiap prajurit butuh 1 rakyat menganggur.`);
+      for(const el of panel.querySelectorAll('[data-act="train"]'))el.disabled=b.built<1||S.res.gold<UT[el.dataset.t].cost||S.res.wood<UT[el.dataset.t].wood||S.idle<1;
     }
     if(b.type==='market')for(const el of panel.querySelectorAll('[data-act="sell"],[data-act="buy"]')){const r=el.dataset.r,n=+el.dataset.n,g=+el.dataset.g;el.disabled=b.built<1||(el.dataset.act==='sell'?S.res[r]<n:S.res.gold<g);}
     if(b.type==='keep'){setV('day',S.day);setV('kills',S.kills);setV('lost',S.lost);}
@@ -1483,7 +1570,7 @@ function updatePanel(){
     else{setV('wt',`Gelombang ${w.n} dari ${MAX_WAVE}`);setV('ws',active?`Menyusul setelah gelombang ini · dari ${waveDir(w)}`:`Tiba dalam ${fmt(S.waveT)} · dari ${waveDir(w)}`);}
     const el=panel.querySelector('[data-v="wc"]'),html=w?Object.entries(w.c).filter(([,n])=>n).map(([t,n])=>`<span>${n} ${UT[t].name}</span>`).join(''):'';
     if(el.dataset.h!==html){el.innerHTML=html;el.dataset.h=html;}
-    setV('wn',!w?'':w.c.catapult?'Ketapel menembak bangunan dari jauh. Kirim Ksatria keluar untuk menghancurkannya.':w.c.ram?'Pendobrak hanya menyerang bangunan dan tahan panah. Hadang dengan Tombak dan Ksatria.':w.split?'Sebagian musuh datang dari utara, sisi yang tidak terlindung sungai.':'Musuh menyeberang lewat titik dangkal sungai. Jaga titik itu dengan tembok, menara, dan pemanah.');
+    setV('wn',!w?'':w.c.catapult?'Ketapel menembak bangunan dari 7 petak. Menara (7,5 petak) dan pemanah di tembok bisa menjangkaunya, atau kirim Ksatria keluar.':w.c.ram?'Pendobrak hanya menyerang bangunan dan tahan panah. Hadang dengan Tombak dan Ksatria.':w.split?'Sebagian musuh datang dari utara, sisi yang tidak terlindung sungai.':'Musuh menyeberang lewat titik dangkal sungai. Jaga titik itu dengan tembok, menara, dan pemanah.');
     panel.querySelector('[data-act="call"]').hidden=!!active||!w;
   }
   if(panelKind==='p'){
@@ -1500,10 +1587,13 @@ panel.addEventListener('click',e=>{
   if(a==='close'){if(panelKind==='u')clearSel();closePanel();selB=0;return;}
   if(a==='train'){const b=bmap.get(selB);const t=el.dataset.t;if(!b)return;
     if(S.idle<1){toast('Tidak ada rakyat menganggur. Bangun Rumah dan jaga popularitas.');return;}
-    if(S.res.gold<UT[t].cost){toast('Emas tidak cukup.');return;}
-    S.res.gold-=UT[t].cost;S.peasants--;b.queue.push(t);assignWorkers();updatePanel();return;}
+    if(S.res.gold<UT[t].cost||S.res.wood<UT[t].wood){toast(`Butuh ${UT[t].cost} emas dan ${UT[t].wood} kayu.`);return;}
+    S.res.gold-=UT[t].cost;S.res.wood-=UT[t].wood;S.peasants--;b.queue.push(t);assignWorkers();updatePanel();return;}
   if(a==='sell'||a==='buy'){const r=el.dataset.r,n=+el.dataset.n,g=+el.dataset.g;
     if(a==='sell'){if(S.res[r]<n)return;S.res[r]-=n;S.res.gold+=g;}else{if(S.res.gold<g)return;S.res.gold-=g;S.res[r]+=n;}updatePanel();return;}
+  if(a==='repair'){const b=bmap.get(selB);if(b&&repairBuilding(b)){sfx('build',b.i,b.j);toast(`${BT[b.type].name} diperbaiki.`);}updatePanel();return;}
+  if(a==='repairall'){const n=repairAll();toast(n?`${n} bangunan diperbaiki.`:'Tidak ada yang bisa diperbaiki sekarang (batu kurang atau musuh terlalu dekat).');if(n)sfx('build',KX,KY);updatePanel();return;}
+  if(a==='upg'){if(!buyUpgrade(el.dataset.k))toast('Bahan tidak cukup.');updatePanel();return;}
   if(a==='demolish'){const b=bmap.get(selB);if(!b)return;const c=BT[b.type].cost||{};for(const k in c)S.res[k]+=Math.floor(c[k]/2);removeBuilding(b,false);closePanel();return;}
   if(a==='call'){if(S.wave<MAX_WAVE){S.waveT=0.01;S.warned=true;}closePanel();return;}
   if(a==='tax'){S.tax=+el.dataset.t;updatePanel();toast(`Pajak: ${TAX[S.tax].name}`);return;}
@@ -1531,34 +1621,73 @@ function selectUnits(list,add){if(!add)clearSel();for(const u of list){u.sel=tru
 
 $('armyBtn').addEventListener('click',()=>{setBuild(null);const a=S.units.filter(u=>u.team===0);selectUnits(a);if(!a.length)toast('Belum ada pasukan. Latih di Barak.');});
 $('boxBtn').addEventListener('click',()=>{if(buildType)setBuild(null);boxMode=!boxMode;$('boxBtn').classList.toggle('on',boxMode);if(boxMode)showHint('Seret di peta untuk memilih pasukan dalam kotak.');else hideHint();});
-$('homeBtn').addEventListener('click',()=>centerOn(KX+1.5,KY+2.5));
+function archersToWalls(){
+  const pool=S.units.filter(u=>u.team===0&&u.type==='archer'&&(selUnits.size?selUnits.has(u.id):!elevAt(u.x,u.y)&&!(u.order&&elevAt(u.order.x,u.order.y))));
+  if(!pool.length){toast(selUnits.size?'Tidak ada pemanah di antara pasukan yang dipilih.':'Tidak ada pemanah di darat. Latih pemanah di Barak.');return;}
+  const taken=new Set();
+  for(const u of S.units){if(u.team!==0||pool.includes(u))continue;if(elevAt(u.x,u.y))taken.add(idx(u.x|0,u.y|0));if(u.order)taken.add(u.order.k);}
+  const tiles=[];
+  for(const b of S.buildings){if(!ELEV[b.type]||b.built<1)continue;for(let y=b.j;y<b.j+b.h;y++)for(let x=b.i;x<b.i+b.w;x++){const k=idx(x,y);if(!taken.has(k))tiles.push({x,y,k});}}
+  if(!tiles.length){toast('Bangun tembok atau menara dulu, atau semua sudah terisi.');return;}
+  let n=0;
+  for(const u of pool){let bi=-1,bd=1e9;for(let q=0;q<tiles.length;q++){const t=tiles[q];if(t.used)continue;const d=Math.hypot(t.x+.5-u.x,t.y+.5-u.y);if(d<bd){bd=d;bi=q;}}
+    if(bi<0)break;const t=tiles[bi];t.used=true;u.order={k:t.k,x:t.x+.5,y:t.y+.5};u.tgt=0;u.auto=true;n++;}
+  toast(`${n} pemanah naik ke tembok.`);
+}
+$('wallBtn').addEventListener('click',()=>{setBuild(null);archersToWalls();});
 $('peopleBtn').addEventListener('click',()=>{panelKind==='p'?closePanel():openPeoplePanel();});
 $('popBtn').addEventListener('click',()=>{panelKind==='p'?closePanel():openPeoplePanel();});
 $('speedBtn').addEventListener('click',()=>{speed=speed===1?2:speed===2?3:1;$('speedBtn').textContent=speed+'×';});
 $('pauseBtn').addEventListener('click',()=>togglePause());
 $('wave').addEventListener('click',()=>{panelKind==='w'?closePanel():openWavePanel();});
-$('soundBtn').addEventListener('click',()=>{audioInit();setMuted(!muted);});
-function togglePause(){if(!started||S.over)return;paused=!paused;$('pauseBtn').textContent=paused?'Lanjut':'Jeda';$('pauseBtn').classList.toggle('on',paused);if(paused)toast('Permainan dijeda');}
+
+function togglePause(){if(!started||S.over)return;if(paused)resumeGame();else openPauseMenu();}
+function resumeGame(){paused=false;$('overlay').hidden=true;$('pauseBtn').textContent='Jeda';$('pauseBtn').classList.remove('on');}
+function openPauseMenu(){
+  paused=true;$('pauseBtn').textContent='Lanjut';$('pauseBtn').classList.add('on');saveGame();
+  $('card').innerHTML=`<p class="kick">Dijeda · hari ke-${S.day} · ${DIFF[S.diff].name}</p><h1>Rehat sejenak</h1>
+  <div class="menu"><button class="big" id="resumeBtn">Lanjutkan</button><button class="ghost" id="soundBtn"></button><button class="ghost" id="helpBtn">Cara bermain</button><button class="ghost" id="restartBtn">Mulai ulang</button></div>
+  <div id="helpBox" hidden>${HELP}</div>`;
+  $('toast').classList.remove('show');$('overlay').hidden=false;setMuted(muted);
+  $('resumeBtn').addEventListener('click',resumeGame);
+  $('soundBtn').addEventListener('click',()=>{audioInit();setMuted(!muted);});
+  $('helpBtn').addEventListener('click',()=>{$('helpBox').hidden=!$('helpBox').hidden;});
+  $('restartBtn').addEventListener('click',e=>{const b=e.currentTarget;if(!b.dataset.armed){b.dataset.armed='1';b.textContent='Ketuk lagi untuk mulai ulang (progres hilang)';return;}
+    clearSave();pickDiff=S.diff;newGame((Math.random()*1e9)|0,pickDiff);renderTerrain();renderMiniBg();closePanel();setBuild(null);started=false;paused=true;$('pauseBtn').textContent='Jeda';$('pauseBtn').classList.remove('on');showStart();});
+}
+const HELP=`<ol>
+    <li><b>Penebang</b> dekat pohon palem, <b>Tambang Batu</b> di batu abu-abu, <b>Kebun Kurma</b> di tanah hijau. <b>Rumah</b> menambah rakyat.</li>
+    <li><b>Barak</b> melatih rakyat menganggur menjadi Tombak, Pemanah, dan Ksatria (emas + kayu).</li>
+    <li>Tekan <b>Pemanah ke tembok</b>: jangkauan lebih jauh dan aman dari tombak musuh. <b>Gerbang</b> bisa ditaruh di atas tembok.</li>
+    <li><b>Jebakan</b> di titik dangkal sungai melukai musuh tanpa terlihat. Ketuk <b>Benteng Utama</b> untuk peningkatan dan perbaikan.</li>
+    <li>Ketuk prajurit untuk memilih, ketuk tanah untuk bergerak. Seret untuk menggeser, cubit untuk zoom, ketuk peta kecil untuk melompat.</li>
+  </ol>`;
 
 // ================= input =================
 const ptrs=new Map();let gesture=null;
-function tileUnder(X,Y,lift){const [x,y]=s2t(X,lift&&buildType!=='wall'?Y-60:Y);return [x,y];}
+function tileUnder(X,Y,lift){const [x,y]=s2t(X,lift&&!LINE[buildType]?Y-60:Y);return [x,y];}
 function updateGhost(X,Y,touch){
   if(!buildType)return;const t=BT[buildType];const [x,y]=tileUnder(X,Y,touch);
   const i=Math.floor(x-t.w/2+.5),j=Math.floor(y-t.h/2+.5);
-  if(buildType==='wall'&&gesture&&gesture.wallStart){
+  if(LINE[buildType]&&gesture&&gesture.wallStart){
     const line=bresenham(gesture.wallStart[0],gesture.wallStart[1],Math.floor(x),Math.floor(y));
-    let stone=S.res.stone;
-    ghost={type:'wall',line:line.map(([a,b])=>{let ok=!canPlace('wall',a,b)&&stone>=2;if(ok)stone-=2;return {i:a,j:b,ok};})};
+    const res={...S.res},type=buildType;
+    ghost={type,line:line.map(([a,b])=>{const ok=!placeCheck(type,a,b)&&costOk.call(null,t.cost,res);if(ok)for(const k in t.cost)res[k]-=t.cost[k];return {i:a,j:b,ok};})};
   } else {
-    const why=canPlace(buildType,i,j);ghost={type:buildType,i,j,ok:!why&&costOk(t.cost),why:why||(!costOk(t.cost)?'Bahan tidak cukup: '+costText(t.cost):'')};
+    const why=placeCheck(buildType,i,j);ghost={type:buildType,i,j,ok:!why&&costOk(t.cost),why:why||(!costOk(t.cost)?'Bahan tidak cukup: '+costText(t.cost):'')};
   }
 }
 function bresenham(x0,y0,x1,y1){const out=[];let dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx+dy;for(let n=0;n<200;n++){out.push([x0,y0]);if(x0===x1&&y0===y1)break;const e2=2*err;if(e2>=dy){err+=dy;x0+=sx;}if(e2<=dx){err+=dx;y0+=sy;}}return out;}
+function placeOne(type,i,j){
+  if(type==='pit'){S.traps.push({i,j,uses:2});S.pits++;return;}
+  const ex=bAt(i+.5,j+.5);if(type==='gate'&&ex&&ex.type==='wall')removeBuilding(ex,false);
+  addBuilding(type,i,j);
+}
 function placeGhost(){
-  if(!ghost)return;
-  if(ghost.line){let n=0;for(const g of ghost.line){if(g.ok&&!canPlace('wall',g.i,g.j)&&S.res.stone>=2){S.res.stone-=2;addBuilding('wall',g.i,g.j);n++;}}if(n)sfx('build',ghost.line[0].i,ghost.line[0].j);if(!n)toast(S.res.stone<2?'Batu tidak cukup.':'Tidak bisa membangun di sana.');}
-  else if(ghost.ok){pay(BT[ghost.type].cost);addBuilding(ghost.type,ghost.i,ghost.j);sfx('build',ghost.i+1,ghost.j+1);}
+  if(!ghost)return;const t=BT[ghost.type];
+  if(ghost.line){let n=0;for(const g of ghost.line){if(g.ok&&!placeCheck(ghost.type,g.i,g.j)&&costOk(t.cost)){pay(t.cost);placeOne(ghost.type,g.i,g.j);n++;}}
+    if(n)sfx('build',ghost.line[0].i,ghost.line[0].j);else toast(!costOk(t.cost)?'Bahan tidak cukup: '+costText(t.cost):'Tidak bisa membangun di sana.');}
+  else if(ghost.ok){pay(t.cost);placeOne(ghost.type,ghost.i,ghost.j);sfx('build',ghost.i+1,ghost.j+1);}
   else if(ghost.why)toast(ghost.why);
   ghost=null;
 }
@@ -1609,7 +1738,7 @@ cv.addEventListener('pointerdown',e=>{
   gesture={type:'pending',sx:e.clientX,sy:e.clientY,lx:e.clientX,ly:e.clientY,touch,btn:e.button,shift:e.shiftKey,moved:false};
   if(buildType){
     if(e.button===2){setBuild(null);gesture=null;return;}
-    if(buildType==='wall'){const [x,y]=tileUnder(e.clientX,e.clientY,false);gesture.wallStart=[Math.floor(x),Math.floor(y)];}
+    if(LINE[buildType]){const [x,y]=tileUnder(e.clientX,e.clientY,false);gesture.wallStart=[Math.floor(x),Math.floor(y)];}
     updateGhost(e.clientX,e.clientY,false);
   }
 });
@@ -1656,25 +1785,35 @@ const keys=new Set();
 addEventListener('keydown',e=>{
   if(e.target.closest&&e.target.closest('button')&&(e.key===' '||e.key==='Enter'))return;
   keys.add(e.key.toLowerCase());
-  if(e.key==='Escape'){setBuild(null);if(S)clearSel();closePanel();}
+  const k=e.key.toLowerCase();
+  if(e.key==='Escape'){if(paused&&started&&!S.over){resumeGame();return;}setBuild(null);if(S)clearSel();closePanel();}
   if(e.key===' '){e.preventDefault();togglePause();}
+  if(!started||paused||!S||S.over)return;
+  if(k==='h')centerOn(KX+1.5,KY+2.5);
+  if(k==='q'){const a=S.units.filter(u=>u.team===0);selectUnits(a);}
+  if(k==='f')archersToWalls();
+  if(k==='1'||k==='2'||k==='3'){speed=+k;$('speedBtn').textContent=speed+'×';}
 });
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 
 // ================= screens =================
+function loadBest(){try{return JSON.parse(localStorage.getItem(BEST_KEY))||{};}catch(e){return {};}}
+function saveBest(d,r){const b=loadBest();const o=b[d]||{score:0,stars:0};const rec=r.score>o.score;b[d]={score:Math.max(o.score,r.score),stars:Math.max(o.stars,r.stars)};try{localStorage.setItem(BEST_KEY,JSON.stringify(b));}catch(e){}return rec;}
+function finalScore(win){
+  const keep=S.buildings.find(b=>b.type==='keep'),kp=keep?Math.max(0,keep.hp/keep.maxhp):0;
+  const base=S.wave*100+S.kills*5+(win?500+Math.round(kp*500):0),score=Math.round(base*[0.75,1,1.5][S.diff]);
+  let stars=0;if(win){stars=1;if(kp>=0.5)stars=2;if(kp>=0.8&&S.lost<=Math.max(5,S.trained*0.3))stars=3;}
+  return {score,stars,kp};
+}
+const starStr=n=>'★'.repeat(n)+`<i>${'★'.repeat(3-n)}</i>`;
 let pickDiff=1;
 function showStart(){
-  const sv=loadSave();
+  const sv=loadSave(),best=loadBest();
   $('card').innerHTML=`<p class="kick">Strategi benteng · 10 gelombang</p><h1>Benteng Gurun</h1>
   <p class="lede">Sebuah benteng batu berdiri di tepi sungai oasis. Pasukan berbendera biru datang dari barat, menyeberangi tiga titik dangkal sungai. Bangun ekonomi, dirikan tembok, dan pertahankan Benteng Utama sampai gelombang kesepuluh.</p>
-  <ol>
-    <li><b>Penebang</b> dekat pohon palem, <b>Tambang Batu</b> di batu abu-abu, <b>Kebun Kurma</b> di tanah hijau.</li>
-    <li><b>Rumah</b> menambah rakyat. <b>Barak</b> melatih rakyat menganggur menjadi Tombak, Pemanah, dan Ksatria.</li>
-    <li>Taruh <b>Pemanah di atas tembok dan menara</b>: jangkauan lebih jauh dan aman dari tombak musuh.</li>
-    <li>Ketuk prajurit untuk memilih, ketuk tanah untuk bergerak. Seret untuk menggeser peta, cubit untuk zoom, ketuk peta kecil untuk melompat.</li>
-  </ol>
+  ${HELP}
   <p class="kick">Tingkat kesulitan</p>
-  <div class="diff" id="diffRow">${DIFF.map((d,k)=>`<button data-d="${k}" class="${k===pickDiff?'sel':''}"><b>${d.name}</b><small>${d.desc}</small></button>`).join('')}</div>
+  <div class="diff" id="diffRow">${DIFF.map((d,k)=>{const r=best[k];return `<button data-d="${k}" class="${k===pickDiff?'sel':''}"><b>${d.name}</b><small>${d.desc}</small>${r&&r.score?`<em>Rekor ${'★'.repeat(r.stars)||'–'} · ${r.score.toLocaleString('id-ID')}</em>`:''}</button>`;}).join('')}</div>
   <div class="row"><button class="big" id="startBtn">Mulai bertahan</button>${sv?`<button class="ghost" id="contBtn">Lanjutkan<small>Gelombang ${sv.wave}/${MAX_WAVE} · hari ${sv.day} · ${DIFF[sv.diff??1].name}</small></button>`:''}</div>`;
   $('overlay').hidden=false;
   $('diffRow').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;pickDiff=+b.dataset.d;for(const x of $('diffRow').children)x.classList.toggle('sel',x===b);});
@@ -1693,13 +1832,15 @@ function showStart(){
 }
 function endGame(win){
   if(S.over)return;S.over=win?1:2;started=true;clearSave();sfx(win?'win':'lose');
+  const sc=finalScore(win),rec=saveBest(S.diff,sc);
   if(win)showBanner('Kemenangan','Sepuluh gelombang dipukul mundur');
   $('quest').hidden=true;
   $('card').innerHTML=`<p class="kick">${win?'Kemenangan':'Kekalahan'} · ${DIFF[S.diff].name} · hari ke-${S.day}</p><h1>${win?'Benteng bertahan':'Benteng runtuh'}</h1>
   <p class="lede">${win?'Sepuluh gelombang telah dipukul mundur. Bendera merahmu masih berkibar di atas menara.':`Benteng Utama jatuh pada gelombang ${S.wave}. Tembok berlapis, menara di titik dangkal sungai, dan pemanah di atas tembok bisa mengubah segalanya.`}</p>
-  <dl class="stats"><dt>Gelombang</dt><dd>${S.wave}/${MAX_WAVE}</dd><dt>Musuh tumbang</dt><dd>${S.kills}</dd><dt>Pasukan gugur</dt><dd>${S.lost}</dd><dt>Prajurit dilatih</dt><dd>${S.trained}</dd><dt>Rakyat</dt><dd>${S.peasants}</dd></dl>
+  ${win?`<p class="stars">${starStr(sc.stars)}</p>`:''}${rec?'<p class="record">Rekor baru!</p>':''}
+  <dl class="stats"><dt>Skor</dt><dd>${sc.score.toLocaleString('id-ID')}</dd><dt>Gelombang</dt><dd>${S.wave}/${MAX_WAVE}</dd><dt>Musuh tumbang</dt><dd>${S.kills}</dd><dt>Pasukan gugur</dt><dd>${S.lost}</dd><dt>Prajurit dilatih</dt><dd>${S.trained}</dd><dt>Rakyat</dt><dd>${S.peasants}</dd></dl>
   <button class="big" id="againBtn">Main lagi</button>`;
-  setTimeout(()=>{$('overlay').hidden=false;},win?1800:900);
+  setTimeout(()=>{$('toast').classList.remove('show');$('overlay').hidden=false;},win?3300:900);
   $('againBtn').addEventListener('click',()=>{newGame((Math.random()*1e9)|0,pickDiff);renderTerrain();renderMiniBg();closePanel();setBuild(null);started=false;paused=true;showStart();});
 }
 
@@ -1733,6 +1874,6 @@ if(window.claude?.hot){try{window.claude.hot.snapshot(()=>({save:serialize(),cam
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
 addEventListener('pagehide',saveGame);
-window.__game={get S(){return S;},get efield(){return efield;},nextStep,BT,elevAt,orderMove,maxPop,update,newGame,canPlace,addBuilding,startWave,setStarted(v){started=v;paused=!v;$('overlay').hidden=v;}};
+window.__game={get S(){return S;},buyUpgrade,repairAll,archersToWalls,canPlacePit,placeOne,finalScore,get efield(){return efield;},nextStep,BT,elevAt,orderMove,maxPop,update,newGame,canPlace,addBuilding,startWave,setStarted(v){started=v;paused=!v;$('overlay').hidden=v;}};
 })();
 </script>
