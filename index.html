@@ -1548,7 +1548,7 @@ function render(tm){
   }
   // screen space: box select
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  drawOffscreen();
+  if(!window.__cine)drawOffscreen();
   if(boxRect){const {x0,y0,x1,y1}=boxRect;ctx.fillStyle='rgba(228,183,92,.12)';ctx.strokeStyle='#e4b75c';ctx.lineWidth=1.5;ctx.fillRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0),Math.abs(y1-y0));ctx.strokeRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0),Math.abs(y1-y0));}
 }
 

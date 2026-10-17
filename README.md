@@ -1,5 +1,9 @@
 # Benteng Gurun
 
+![Cuplikan Benteng Gurun](media/benteng-gurun.gif)
+
+[Trailer 1080p (MP4)](media/benteng-gurun-trailer.mp4)
+
 Game strategi benteng isometrik di browser, terinspirasi *Stronghold Crusader*. Bangun ekonomi di tepi sungai oasis, dirikan tembok dan menara, latih pasukan, dan bertahan dari 10 gelombang musuh.
 
 Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
