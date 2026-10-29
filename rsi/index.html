@@ -70,8 +70,8 @@ p{margin:0}
 
 /* panels */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:16px;min-width:0}
-.tabs{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:10px;width:max-content;max-width:100%}
-.tabs button{font:600 14px var(--f-body);border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:7px;cursor:pointer}
+.tabs{display:grid;grid-template-columns:repeat(3,auto);gap:4px;background:var(--bg);padding:4px;border-radius:10px;width:max-content;max-width:100%}
+.tabs button{font:600 14px var(--f-body);border:0;background:transparent;color:var(--muted);padding:8px 10px;white-space:nowrap;border-radius:7px;cursor:pointer}
 .tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 button,select,input{font:inherit;color:inherit}
 .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:500}
@@ -106,6 +106,23 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .mark .acts .btn{padding:5px 10px;font-size:13px}
 .err{color:var(--bad);font-size:13px}
 
+/* live camera */
+.cam{position:relative;max-width:480px;width:100%;border-radius:10px;overflow:hidden;background:#000;touch-action:none}
+.cam video{max-height:none;border-radius:0}
+.cam canvas{position:absolute;inset:0;width:100%;height:100%;cursor:ns-resize}
+.lstate{position:absolute;left:8px;top:8px;right:8px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.lstate span{font-family:var(--f-display);font-weight:600;font-size:20px;padding:2px 12px;border-radius:999px;background:rgba(10,16,22,.75);color:#fff}
+.lstate .ready{background:var(--good)}
+.lstate .busy{background:var(--track)}
+.lstate small{font-family:var(--f-mono);font-size:12px;padding:4px 8px;border-radius:6px;background:rgba(10,16,22,.75);color:#fff;align-self:start}
+.meter{position:relative;height:14px;border-radius:7px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);transition:width .05s linear}
+.meter b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--bad)}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink);font-weight:500}
+.flash{animation:flash .6s ease-out}
+@keyframes flash{from{box-shadow:0 0 0 4px var(--track)}to{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}
+
 /* history */
 .tablewrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:14px}
@@ -139,7 +156,7 @@ th.n{text-align:right}
       <div class="eyebrow">Reactive Strength Index · Drop Jump</div>
       <h1>Pengukur RSI</h1>
     </div>
-    <p>Rekam drop jump dari samping, tandai tiga frame, dan dapatkan RSI, tinggi lompatan, serta waktu kontak.</p>
+    <p>Arahkan kamera HP ke tempat mendarat, lalu lompat: RSI, tinggi lompatan, dan waktu kontak muncul begitu Anda mendarat. Bisa juga dari video atau input manual.</p>
   </header>
 
   <section class="board" aria-live="polite">
@@ -161,11 +178,46 @@ th.n{text-align:right}
 
   <section class="panel">
     <div class="tabs" role="tablist">
-      <button role="tab" id="tabV" aria-selected="true">Dari video</button>
+      <button role="tab" id="tabL" aria-selected="true">Live kamera</button>
+      <button role="tab" id="tabV" aria-selected="false">Dari video</button>
       <button role="tab" id="tabM" aria-selected="false">Input manual</button>
     </div>
 
-    <div id="paneV" class="stage">
+    <div id="paneL" class="stage">
+      <div class="row">
+        <button class="btn primary" id="lStart">Nyalakan kamera</button>
+        <button class="btn" id="lFlip" hidden>Ganti kamera</button>
+        <button class="btn" id="lStop" hidden>Matikan kamera</button>
+      </div>
+      <p class="err" id="lErr"></p>
+      <div class="cam" id="lCam" hidden>
+        <video id="lvid" playsinline muted autoplay></video>
+        <canvas id="lov" aria-label="Zona pendaratan, ketuk atau geser untuk memindahkan"></canvas>
+        <div class="lstate"><span id="lState">Menyiapkan</span><small class="num" id="lFps">– fps</small></div>
+      </div>
+      <div id="lCtl" class="stage" hidden>
+        <div class="split">
+          <div class="legend" style="color:var(--muted)"><span>Isi zona pendaratan</span><span class="num" id="lPct">0%</span></div>
+          <div class="meter"><i id="lMeter"></i><b id="lThr"></b></div>
+        </div>
+        <div class="grid3">
+          <label>Tebal zona<input type="range" id="lH" min="2" max="30" value="8"></label>
+          <label>Batas kiri – kanan<span class="row" style="flex-wrap:nowrap"><input type="range" id="lX0" min="0" max="45" value="3"><input type="range" id="lX1" min="55" max="100" value="97"></span></label>
+          <label>Ambang deteksi<input type="range" id="lThrIn" min="2" max="60" value="6"></label>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="lAuto" checked> Simpan otomatis ke riwayat</label>
+          <label class="check"><input type="checkbox" id="lBeep" checked> Bunyi saat hasil keluar</label>
+          <button class="btn" id="lRearm">Siapkan ulang</button>
+        </div>
+        <p class="hint" id="lMsg"></p>
+      </div>
+      <div class="hint" id="lHelp">
+        <b>Cara pakai live:</b> letakkan HP di lantai atau tripod rendah, 1,5–3 m dari tempat mendarat, kamera menghadap samping. Geser garis zona (kotak berwarna) tepat di permukaan lantai tempat kaki mendarat, dan pastikan box berada di luar zona. Saat label berubah <b>SIAP</b>, naik ke box lalu lakukan drop jump. Kaki masuk zona = kontak, keluar = take-off, masuk lagi = mendarat. Ketelitian sekitar ±1 frame (±17 ms di 60 fps), jadi cahaya terang dan frame rate tinggi membantu.
+      </div>
+    </div>
+
+    <div id="paneV" class="stage" hidden>
       <label class="drop" id="drop">
         <input type="file" id="file" accept="video/*">
         <h3>Pilih atau seret video drop jump</h3>
@@ -309,7 +361,7 @@ function compute(tc,tf,hGiven){
 function render(){
   const r=cur||{...compute(0.21,0.52),src:'ex'};
   const isEx=!cur;
-  $('srcTag').textContent=isEx?'Contoh, belum ada pengukuran':(r.src==='video'?'Dari video':'Input manual');
+  $('srcTag').textContent=isEx?'Contoh, belum ada pengukuran':({video:'Dari video',live:'Live kamera'}[r.src]||'Input manual');
   $('srcTag').classList.toggle('live',!isEx);
   $('oH').textContent=fmtH(r.h);
   $('oHu').textContent=unit+' tinggi';
@@ -328,9 +380,13 @@ function render(){
 $('unitBtn').onclick=()=>{unit=unit==='cm'?'in':'cm';store.set('rsi.unit',unit);render();renderHist()};
 
 // tabs
-function tab(v){$('tabV').setAttribute('aria-selected',v);$('tabM').setAttribute('aria-selected',!v);$('paneV').hidden=!v;$('paneM').hidden=v;
-  if(v)fromVideo();else fromManual();}
-$('tabV').onclick=()=>tab(true);$('tabM').onclick=()=>tab(false);
+const TABS=['L','V','M'];
+function tab(k){
+  TABS.forEach(t=>{$('tab'+t).setAttribute('aria-selected',t===k);$('pane'+t).hidden=t!==k});
+  if(k!=='L')liveStop();
+  if(k==='V')fromVideo();else if(k==='M')fromManual();else{cur=LV.last;render()}
+}
+TABS.forEach(t=>$('tab'+t).onclick=()=>tab(t));
 
 // manual
 function fromManual(){
@@ -454,13 +510,14 @@ function renderHist(){
 }
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 $('hist').addEventListener('click',e=>{const i=e.target.dataset.del;if(i!=null){hist.splice(+i,1);store.set('rsi.hist',hist);renderHist()}});
-$('bSave').onclick=()=>{
+function saveCur(){
   if(!cur)return;
   const box=parseFloat($('sBox').value);
   hist.unshift({at:Date.now(),name:$('sName').value.trim(),note:$('sNote').value.trim(),box:isNaN(box)?null:box,tc:cur.tc,tf:cur.tf,h:cur.h,rsi:cur.rsi,src:cur.src});
   store.set('rsi.hist',hist);store.set('rsi.name',$('sName').value.trim());renderHist();
   $('saveMsg').textContent=`Tersimpan: RSI ${cur.rsi.toFixed(2)}`;setTimeout(()=>$('saveMsg').textContent='',2500);
-};
+}
+$('bSave').onclick=saveCur;
 $('sName').value=store.get('rsi.name','');
 let clearArm=false;
 $('bClear').onclick=()=>{
@@ -477,6 +534,136 @@ $('bCsv').onclick=()=>{
   const fallback=()=>{ta.hidden=false;ta.focus();ta.select();$('bCsv').textContent='Salin teks di bawah'};
   try{navigator.clipboard.writeText(csv).then(()=>{ta.hidden=true;done()},fallback)}catch(e){fallback()}
 };
+
+// live camera: a virtual light gate on the floor. Feet in the zone = contact, out = air.
+const LV={stream:null,facing:'environment',state:'off',ref:null,stable:false,pendT:null,pendN:0,lastT:null,
+  emptySince:0,t1:0,t2:0,fps:0,last:null,ac:null,raf:0,wake:null};
+const lvid=$('lvid'),ov=$('lov'),octx=ov.getContext('2d');
+const work=document.createElement('canvas'),wctx=work.getContext('2d',{willReadFrequently:true});
+const zone=Object.assign({y:0.88,h:0.08,x0:0.03,x1:0.97},store.get('rsi.zone',{}));
+const PIX=22,CONFIRM=2,MAX_TC=1.0,MAX_TF=1.2,MIN_TF=0.08;
+['lH','lX0','lX1','lThrIn'].forEach(id=>{const s=store.get('rsi.'+id,null);if(s!=null)$(id).value=s});
+const thr=()=>+$('lThrIn').value/100;
+function syncZone(){
+  zone.h=+$('lH').value/100;zone.x0=+$('lX0').value/100;zone.x1=+$('lX1').value/100;
+  zone.y=Math.min(1-zone.h/2,Math.max(zone.h/2,zone.y));
+  store.set('rsi.zone',zone);['lH','lX0','lX1','lThrIn'].forEach(id=>store.set('rsi.'+id,$(id).value));
+  LV.ref=null;$('lThr').style.left=Math.min(100,thr()/0.6*100)+'%';
+}
+['lH','lX0','lX1','lThrIn'].forEach(id=>$(id).addEventListener('input',syncZone));
+function placeZone(e){const r=ov.getBoundingClientRect();zone.y=(e.clientY-r.top)/r.height;syncZone()}
+ov.addEventListener('pointerdown',e=>{ov.setPointerCapture(e.pointerId);placeZone(e)});
+ov.addEventListener('pointermove',e=>{if(e.buttons)placeZone(e)});
+
+const STATE_TXT={wait:['Kosongkan zona',''],armed:['SIAP, silakan lompat','ready'],contact:['Kontak','busy'],flight:['Melayang','busy']};
+function setState(s,msg){
+  LV.state=s;const [t,c]=STATE_TXT[s]||['Kamera mati',''];
+  $('lState').textContent=t;$('lState').className=c;
+  if(msg!=null)$('lMsg').textContent=msg;
+}
+async function liveStart(){
+  $('lErr').textContent='';
+  if(!navigator.mediaDevices?.getUserMedia){$('lErr').textContent='Browser ini tidak mendukung kamera. Gunakan Chrome atau Safari terbaru, dan buka halaman lewat https.';return}
+  try{
+    liveStop();
+    LV.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:LV.facing},frameRate:{ideal:120},width:{ideal:640},height:{ideal:480}}});
+  }catch(e){
+    $('lErr').textContent=e.name==='NotAllowedError'||e.name==='SecurityError'
+      ?'Akses kamera ditolak. Izinkan kamera untuk situs ini, atau buka aplikasi lewat alamat https (bukan dari dalam halaman pratinjau yang memblokir kamera). Mode video dan manual tetap bisa dipakai.'
+      :'Kamera tidak bisa dibuka: '+e.message;
+    return;
+  }
+  try{if(!LV.ac)LV.ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  try{LV.wake=await navigator.wakeLock?.request('screen')}catch(e){}
+  lvid.srcObject=LV.stream;await lvid.play().catch(()=>{});
+  $('lCam').hidden=false;$('lCtl').hidden=false;$('lStop').hidden=false;$('lFlip').hidden=false;$('lStart').hidden=true;
+  LV.ref=null;LV.lastT=null;LV.stable=false;LV.emptySince=performance.now()/1000;setState('wait','');
+  syncZone();loop();
+}
+function liveStop(){
+  if(LV.stream)LV.stream.getTracks().forEach(t=>t.stop());
+  LV.stream=null;cancelAnimationFrame(LV.raf);LV.raf=0;
+  try{LV.wake?.release()}catch(e){}LV.wake=null;
+  $('lCam').hidden=true;$('lCtl').hidden=true;$('lStop').hidden=true;$('lFlip').hidden=true;$('lStart').hidden=false;
+  LV.state='off';
+}
+$('lStart').onclick=liveStart;$('lStop').onclick=liveStop;
+$('lFlip').onclick=()=>{LV.facing=LV.facing==='environment'?'user':'environment';liveStart()};
+$('lRearm').onclick=()=>{LV.ref=null;LV.emptySince=LV.lastT||0;setState('wait','Zona dikalibrasi ulang.')};
+
+function loop(){
+  if(!LV.stream)return;
+  if(lvid.requestVideoFrameCallback)lvid.requestVideoFrameCallback((now,m)=>{frame(m.captureTime>0?m.captureTime/1000:(m.expectedDisplayTime||now)/1000);loop()});
+  else LV.raf=requestAnimationFrame(now=>{frame(now/1000);loop()});
+}
+function frame(t){
+  const vw=lvid.videoWidth,vh=lvid.videoHeight;if(!vw||!vh)return;
+  if(LV.lastT!=null&&t<=LV.lastT)return;
+  if(LV.lastT!=null){const dt=t-LV.lastT;if(dt<0.5)LV.fps=LV.fps?LV.fps*0.9+0.1/dt:1/dt}
+  // overlay
+  const cw=ov.clientWidth,ch=ov.clientHeight;
+  if(ov.width!==cw||ov.height!==ch){ov.width=cw;ov.height=ch}
+  // sample the zone
+  const sx=zone.x0*vw,sw=(zone.x1-zone.x0)*vw,sy=(zone.y-zone.h/2)*vh,sh=zone.h*vh;
+  const W=96,H=Math.max(3,Math.min(32,Math.round(W*sh/sw)));
+  if(work.width!==W||work.height!==H){work.width=W;work.height=H;LV.ref=null}
+  wctx.drawImage(lvid,sx,sy,sw,sh,0,0,W,H);
+  const d=wctx.getImageData(0,0,W,H).data,n=W*H,g=new Float32Array(n);
+  for(let i=0;i<n;i++)g[i]=0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2];
+  let frac=0;
+  if(LV.ref&&LV.ref.length===n){
+    let md=0;for(let i=0;i<n;i++)md+=g[i]-LV.ref[i];md/=n; // ignore global exposure shifts
+    let c=0;for(let i=0;i<n;i++)if(Math.abs(g[i]-LV.ref[i]-md)>PIX)c++;
+    frac=c/n;
+  }else{LV.ref=g;LV.lastT=t;return}
+  const occ=frac>thr();
+  // learn the empty floor only while waiting
+  if((LV.state==='wait'||LV.state==='armed')&&!occ){const r=LV.ref;for(let i=0;i<n;i++)r[i]+=(g[i]-r[i])*0.08}
+  // debounce: a change counts once it holds for CONFIRM frames, timed at its first frame
+  if(occ!==LV.stable){
+    if(LV.pendN===0)LV.pendT=LV.lastT!=null?(LV.lastT+t)/2:t;
+    if(++LV.pendN>=CONFIRM){LV.stable=occ;LV.pendN=0;edge(occ,LV.pendT)}
+  }else LV.pendN=0;
+  tickState(t);
+  LV.lastT=t;
+  // draw
+  const col=LV.stable?'rgba(239,122,82,':'rgba(69,192,127,';
+  octx.clearRect(0,0,cw,ch);
+  octx.fillStyle=col+'0.28)';octx.strokeStyle=col+'1)';octx.lineWidth=2;
+  octx.fillRect(zone.x0*cw,(zone.y-zone.h/2)*ch,(zone.x1-zone.x0)*cw,zone.h*ch);
+  octx.strokeRect(zone.x0*cw,(zone.y-zone.h/2)*ch,(zone.x1-zone.x0)*cw,zone.h*ch);
+  $('lMeter').style.width=Math.min(100,frac/0.6*100)+'%';
+  $('lPct').textContent=Math.round(frac*100)+'%';
+  $('lFps').textContent=Math.round(LV.fps)+' fps';
+}
+function edge(occ,t){
+  if(occ){
+    if(LV.state==='armed'){LV.t1=t;setState('contact','')}
+    else if(LV.state==='flight'){
+      const tf=t-LV.t2;
+      if(tf<MIN_TF){setState('contact');return} // flicker, still on the ground
+      result(LV.t2-LV.t1,tf);
+    }
+  }else{
+    LV.emptySince=t;
+    if(LV.state==='contact'){LV.t2=t;setState('flight')}
+  }
+}
+function tickState(t){
+  if(LV.state==='wait'&&!LV.stable&&t-LV.emptySince>=0.4)setState('armed');
+  else if(LV.state==='contact'&&t-LV.t1>MAX_TC)setState('wait','Kontak lebih dari 1 detik, dianggap bukan drop jump. Keluar dari zona untuk mengulang.');
+  else if(LV.state==='flight'&&t-LV.t2>MAX_TF)setState('wait','Tidak mendarat kembali di zona. Siap untuk lompatan berikutnya.');
+}
+function result(tc,tf){
+  const r=compute(tc,tf);
+  setState('wait',r?`Lompatan tercatat ${new Date().toLocaleTimeString('id-ID')}. Keluar dari zona, lalu lompat lagi.`:'');
+  if(!r)return;
+  cur=LV.last={...r,src:'live'};render();
+  const b=document.querySelector('.board');b.classList.remove('flash');void b.offsetWidth;b.classList.add('flash');
+  if($('lBeep').checked&&LV.ac){try{const o=LV.ac.createOscillator(),gn=LV.ac.createGain();o.frequency.value=880;gn.gain.setValueAtTime(0.2,LV.ac.currentTime);gn.gain.exponentialRampToValueAtTime(0.001,LV.ac.currentTime+0.25);o.connect(gn).connect(LV.ac.destination);o.start();o.stop(LV.ac.currentTime+0.25)}catch(e){}}
+  if($('lAuto').checked)saveCur();
+}
+document.addEventListener('visibilitychange',async()=>{if(!document.hidden&&LV.stream&&!LV.wake){try{LV.wake=await navigator.wakeLock?.request('screen')}catch(e){}}});
 
 render();renderHist();
 })();

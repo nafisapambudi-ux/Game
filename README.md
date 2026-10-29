@@ -55,4 +55,8 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 
 ## Pengukur RSI (`rsi/index.html`)
 
-Aplikasi web terpisah untuk mengukur *Reactive Strength Index* drop jump. Buka `rsi/index.html` di browser, pilih video drop jump (slow-motion lebih akurat), lalu tandai tiga frame: kontak, take-off, dan mendarat. Aplikasi menghitung waktu kontak, tinggi lompatan (`g · t_layang² / 8`), dan `RSI = tinggi (m) / waktu kontak (s)`. Ada juga input manual dan riwayat yang tersimpan di browser (bisa disalin sebagai CSV).
+Aplikasi web terpisah untuk mengukur *Reactive Strength Index* drop jump.
+
+**Live kamera:** letakkan HP rendah menghadap samping tempat mendarat, geser zona berwarna tepat di permukaan lantai, lalu lakukan drop jump. Kaki masuk zona = kontak, keluar = take-off, masuk lagi = mendarat; hasil muncul begitu Anda mendarat dan bisa tersimpan otomatis. Kamera hanya bisa dibuka lewat `https://` (mis. GitHub Pages) atau `localhost`.
+
+**Dari video:** buka `rsi/index.html` di browser, pilih video drop jump (slow-motion lebih akurat), lalu tandai tiga frame: kontak, take-off, dan mendarat. Aplikasi menghitung waktu kontak, tinggi lompatan (`g · t_layang² / 8`), dan `RSI = tinggi (m) / waktu kontak (s)`. Ada juga input manual dan riwayat yang tersimpan di browser (bisa disalin sebagai CSV).
