@@ -50,3 +50,9 @@ Buka `index.html` di browser (desktop atau HP). Tidak perlu instalasi.
 | Semua pasukan / ke benteng | tombol Pasukan / peta kecil | Q / H |
 | Kecepatan | tombol 1× | 1, 2, 3 |
 | Jeda / menu | tombol Jeda | Spasi, Esc |
+
+---
+
+## Pengukur RSI (`rsi/index.html`)
+
+Aplikasi web terpisah untuk mengukur *Reactive Strength Index* drop jump. Buka `rsi/index.html` di browser, pilih video drop jump (slow-motion lebih akurat), lalu tandai tiga frame: kontak, take-off, dan mendarat. Aplikasi menghitung waktu kontak, tinggi lompatan (`g · t_layang² / 8`), dan `RSI = tinggi (m) / waktu kontak (s)`. Ada juga input manual dan riwayat yang tersimpan di browser (bisa disalin sebagai CSV).

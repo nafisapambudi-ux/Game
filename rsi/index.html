@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pengukur RSI Drop Jump</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab console. Scoreboard readout on top, measuring bench (video / manual) below, then log and guide. */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#14202b; --muted:#5b6876; --line:#d5dbe2;
+  --accent:#1f5fd6; --accent-ink:#ffffff; --track:#d2512a;
+  --good:#1d8a52; --warn:#b7791f; --bad:#c03a2b;
+  --board:#101820; --board-ink:#f3f6f9; --board-dim:#8a98a6;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1319; --panel:#151d26; --ink:#e6ecf2; --muted:#93a1af; --line:#26323e;
+  --accent:#5b8ff0; --accent-ink:#0b1220; --track:#ef7a52;
+  --good:#45c07f; --warn:#e2a646; --bad:#ef6a5b;
+  --board:#070b0f; --board-ink:#f3f6f9; --board-dim:#7d8b99; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1319; --panel:#151d26; --ink:#e6ecf2; --muted:#93a1af; --line:#26323e;
+  --accent:#5b8ff0; --accent-ink:#0b1220; --track:#ef7a52;
+  --good:#45c07f; --warn:#e2a646; --bad:#ef6a5b;
+  --board:#070b0f; --board-ink:#f3f6f9; --board-dim:#7d8b99; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:20px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:clamp(28px,6vw,40px);text-transform:uppercase}
+h2{font-size:24px;text-transform:uppercase}
+h3{font-size:18px}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px 16px}
+.head p{color:var(--muted);max-width:60ch}
+.num{font-variant-numeric:tabular-nums}
+
+/* scoreboard */
+.board{background:var(--board);color:var(--board-ink);border-radius:16px;padding:20px;display:grid;gap:16px}
+.board-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--board-dim);color:var(--board-dim)}
+.tag.live{border-color:var(--track);color:var(--track)}
+.readout{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.cell{display:grid;justify-items:center;gap:2px;text-align:center}
+.cell .v{font-family:var(--f-display);font-weight:600;font-size:clamp(30px,7vw,46px);line-height:1}
+.cell .u{font-family:var(--f-mono);font-size:12px;color:var(--board-dim)}
+.ring{width:clamp(130px,34vw,190px);aspect-ratio:1;max-width:100%;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(closest-side,var(--board) 78%,transparent 79% 100%),conic-gradient(var(--track) calc(var(--p,0)*1%),#2a3742 0)}
+.ring div{display:grid;justify-items:center}
+.ring .v{font-family:var(--f-display);font-weight:700;font-size:clamp(40px,10vw,64px);line-height:1}
+.ring .u{font-family:var(--f-mono);font-size:12px;color:var(--board-dim);letter-spacing:.1em}
+.split{display:grid;gap:6px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#2a3742}
+.bar .c{background:var(--track)}
+.bar .f{background:#6fa0ff}
+.legend{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-family:var(--f-mono);font-size:12px;color:var(--board-dim)}
+.legend b{font-weight:500;color:var(--board-ink)}
+.verdict{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{font-family:var(--f-display);font-size:18px;font-weight:600;padding:2px 12px;border-radius:999px;background:#2a3742}
+.verdict small{color:var(--board-dim)}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:16px;min-width:0}
+.tabs{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:10px;width:max-content;max-width:100%}
+.tabs button{font:600 14px var(--f-body);border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+button,select,input{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input[type=number],input[type=text],select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.hint{font-size:13px;color:var(--muted)}
+
+/* video bench */
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;display:grid;justify-items:center;gap:8px;text-align:center;cursor:pointer}
+.drop.over{border-color:var(--accent)}
+.drop input{display:none}
+.stage{display:grid;gap:10px}
+video{width:100%;max-height:60vh;background:#000;border-radius:10px;display:block}
+.transport{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.transport .time{font-family:var(--f-mono);font-size:13px;margin-left:auto}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.timeline{position:relative;height:18px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
+.timeline span{position:absolute;top:-3px;bottom:-3px;width:3px;border-radius:2px;transform:translateX(-1px)}
+.timeline .seg{top:0;bottom:0;border-radius:0;width:auto;transform:none;opacity:.35}
+.marks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.mark{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:6px}
+.mark .k{display:flex;align-items:center;gap:8px;font-weight:600}
+.mark .dot{width:10px;height:10px;border-radius:50%}
+.mark .t{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.mark .acts{display:flex;gap:6px}
+.mark .acts .btn{padding:5px 10px;font-size:13px}
+.err{color:var(--bad);font-size:13px}
+
+/* history */
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono)}
+th.n{text-align:right}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;color:#fff}
+.x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px}
+.empty{color:var(--muted);text-align:center;padding:18px}
+
+/* guide */
+.guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.guide ol,.guide ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.formula{font-family:var(--f-mono);font-size:13px;background:var(--bg);border-radius:8px;padding:10px 12px;display:grid;gap:4px;overflow-x:auto}
+.scale{display:grid;gap:4px}
+.scale div{display:flex;align-items:center;gap:8px;font-size:14px}
+.scale i{width:12px;height:12px;border-radius:3px;flex:none}
+@media (max-width:520px){
+  .readout{grid-template-columns:1fr 1fr}
+  .readout .ring{grid-column:1/-1;grid-row:1;justify-self:center}
+}
+@media (prefers-reduced-motion:no-preference){.ring{transition:background .4s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <div class="eyebrow">Reactive Strength Index · Drop Jump</div>
+      <h1>Pengukur RSI</h1>
+    </div>
+    <p>Rekam drop jump dari samping, tandai tiga frame, dan dapatkan RSI, tinggi lompatan, serta waktu kontak.</p>
+  </header>
+
+  <section class="board" aria-live="polite">
+    <div class="board-top">
+      <span class="tag" id="srcTag">Contoh</span>
+      <button class="btn" id="unitBtn" style="background:transparent;color:var(--board-ink);border-color:#2a3742;padding:4px 10px;font-size:13px">Satuan: cm</button>
+    </div>
+    <div class="readout">
+      <div class="cell"><span class="v num" id="oH">0.0</span><span class="u" id="oHu">cm tinggi</span></div>
+      <div class="ring" id="ring"><div><span class="v num" id="oRSI">0.00</span><span class="u">RSI</span></div></div>
+      <div class="cell"><span class="v num" id="oTc">.000</span><span class="u">s kontak</span></div>
+    </div>
+    <div class="split">
+      <div class="bar"><div class="c" id="barC"></div><div class="f" id="barF"></div></div>
+      <div class="legend"><span>Kontak <b class="num" id="lC">–</b></span><span>Melayang <b class="num" id="lF">–</b></span></div>
+    </div>
+    <div class="verdict"><span class="pill" id="pill">–</span><small id="note"></small></div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabV" aria-selected="true">Dari video</button>
+      <button role="tab" id="tabM" aria-selected="false">Input manual</button>
+    </div>
+
+    <div id="paneV" class="stage">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="video/*">
+        <h3>Pilih atau seret video drop jump</h3>
+        <span class="hint">Video slow-motion (120–240 fps) paling akurat. Video tidak diunggah ke mana pun, hanya diputar di perangkat ini.</span>
+      </label>
+      <div id="bench" hidden class="stage">
+        <video id="vid" playsinline muted preload="auto"></video>
+        <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Posisi video">
+        <div class="timeline" id="tl" aria-hidden="true"></div>
+        <div class="transport">
+          <button class="btn" id="bBack10" title="Mundur 10 frame">«10</button>
+          <button class="btn" id="bBack" title="Mundur 1 frame (tombol ,)">‹ 1</button>
+          <button class="btn primary" id="bPlay">Putar</button>
+          <button class="btn" id="bFwd" title="Maju 1 frame (tombol .)">1 ›</button>
+          <button class="btn" id="bFwd10" title="Maju 10 frame">10»</button>
+          <span class="time num" id="tNow">0.000 s · frame 0</span>
+        </div>
+        <div class="grid3">
+          <label>Frame rate file video
+            <select id="fps">
+              <option value="auto">Otomatis</option>
+              <option value="24">24 fps</option><option value="30" selected>30 fps</option>
+              <option value="60">60 fps</option><option value="120">120 fps</option><option value="240">240 fps</option>
+            </select>
+          </label>
+          <label>Perlambatan (slow-mo)
+            <select id="slow">
+              <option value="1">Tidak ada (1×)</option><option value="2">2×</option>
+              <option value="4">4× (120 fps diputar 30)</option><option value="8">8× (240 fps diputar 30)</option>
+            </select>
+          </label>
+          <label>Kecepatan putar
+            <select id="rate"><option value="1">1×</option><option value="0.5">0,5×</option><option value="0.25" selected>0,25×</option><option value="0.1">0,1×</option></select>
+          </label>
+        </div>
+        <p class="hint" id="fpsHint">Putar video sebentar agar frame rate terdeteksi otomatis.</p>
+        <div class="marks" id="marks"></div>
+        <p class="err" id="vErr"></p>
+        <div class="row"><button class="btn" id="bReset">Hapus tanda</button><button class="btn" id="bNew">Ganti video</button></div>
+      </div>
+    </div>
+
+    <div id="paneM" class="stage" hidden>
+      <div class="grid3">
+        <label>Waktu kontak (ms)<input type="number" id="mTc" min="1" step="1" value="210" inputmode="decimal"></label>
+        <label>Dasar tinggi
+          <select id="mMode"><option value="tf">Dari waktu melayang</option><option value="h">Tinggi lompatan diketahui</option></select>
+        </label>
+        <label id="mTfL">Waktu melayang (ms)<input type="number" id="mTf" min="1" step="1" value="520" inputmode="decimal"></label>
+        <label id="mHL" hidden>Tinggi lompatan (cm)<input type="number" id="mH" min="0" step="0.1" value="33" inputmode="decimal"></label>
+      </div>
+      <p class="hint">Gunakan angka dari jump mat, sensor, atau aplikasi lain. Hasil di papan atas langsung diperbarui.</p>
+    </div>
+
+    <div class="grid3" style="border-top:1px solid var(--line);padding-top:16px">
+      <label>Nama atlet<input type="text" id="sName" placeholder="mis. Rani" autocomplete="off"></label>
+      <label>Tinggi box (cm)<input type="number" id="sBox" min="0" step="1" value="30" inputmode="decimal"></label>
+      <label>Catatan<input type="text" id="sNote" placeholder="mis. percobaan 2" autocomplete="off"></label>
+    </div>
+    <div class="row"><button class="btn primary" id="bSave" disabled>Simpan ke riwayat</button><span class="hint" id="saveMsg"></span></div>
+  </section>
+
+  <section class="panel">
+    <div class="head"><h2>Riwayat</h2>
+      <div class="row"><button class="btn" id="bCsv">Salin CSV</button><button class="btn" id="bClear">Hapus semua</button></div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Waktu</th><th>Atlet</th><th class="n">Box</th><th class="n">Kontak</th><th class="n">Tinggi</th><th class="n">RSI</th><th>Kategori</th><th></th></tr></thead>
+        <tbody id="hist"></tbody>
+      </table>
+    </div>
+    <textarea id="csvOut" hidden readonly rows="5" style="width:100%;font-family:var(--f-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px"></textarea>
+    <p class="hint">Riwayat tersimpan hanya di browser ini.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Cara mengukur</h2>
+    <div class="guide">
+      <div><h3>Merekam</h3>
+        <ol>
+          <li>Letakkan HP di lantai/tripod setinggi kaki, menghadap samping atlet, 2–3 m jauhnya.</li>
+          <li>Pakai mode slow-motion (240 fps jika ada). Pastikan kaki dan lantai terlihat jelas.</li>
+          <li>Atlet berdiri di box (20–60 cm), tangan di pinggang, melangkah turun (jangan melompat), lalu memantul ke atas secepat dan setinggi mungkin.</li>
+          <li>Mendarat dengan kaki lurus seperti saat take-off agar waktu melayang tidak terlalu panjang.</li>
+        </ol>
+      </div>
+      <div><h3>Menandai frame</h3>
+        <ol>
+          <li><b>Kontak</b>: frame pertama kaki menyentuh lantai setelah turun dari box.</li>
+          <li><b>Take-off</b>: frame pertama kaki sudah lepas dari lantai.</li>
+          <li><b>Mendarat</b>: frame pertama kaki menyentuh lantai lagi.</li>
+        </ol>
+        <p class="hint" style="margin-top:6px">Pintasan keyboard: <b>,</b> dan <b>.</b> geser 1 frame, spasi putar/jeda, <b>1</b> <b>2</b> <b>3</b> menandai.</p>
+      </div>
+      <div><h3>Rumus</h3>
+        <div class="formula">
+          <span>t_kontak = take-off − kontak</span>
+          <span>t_layang = mendarat − take-off</span>
+          <span>tinggi = g · t_layang² / 8</span>
+          <span>RSI = tinggi (m) / t_kontak (s)</span>
+        </div>
+        <p class="hint" style="margin-top:6px">g = 9,81 m/s². Waktu dibagi faktor slow-mo jika video diperlambat.</p>
+      </div>
+      <div><h3>Patokan RSI drop jump</h3>
+        <div class="scale" id="scale"></div>
+        <p class="hint" style="margin-top:6px">Patokan umum untuk atlet; bandingkan terutama dengan hasil atlet itu sendiri dari waktu ke waktu. Kontak di atas 250 ms berarti pantulan lambat.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const G=9.81;
+const BANDS=[
+  {max:1.0,name:'Rendah',c:'var(--bad)'},
+  {max:1.5,name:'Kurang',c:'#d4743a'},
+  {max:2.0,name:'Sedang',c:'var(--warn)'},
+  {max:2.5,name:'Baik',c:'#5a9d3c'},
+  {max:3.0,name:'Sangat baik',c:'var(--good)'},
+  {max:Infinity,name:'Elite',c:'var(--accent)'}
+];
+const band=r=>BANDS.find(b=>r<b.max);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+let unit=store.get('rsi.unit','cm');
+let cur=null; // {tc, tf?, h, rsi, src}
+
+// scale legend
+let lo=0;$('scale').innerHTML=BANDS.map(b=>{const t=b.max===Infinity?`≥ ${lo.toFixed(1)}`:`${lo.toFixed(1)} – ${(b.max-0.01).toFixed(2)}`;lo=b.max;return `<div><i style="background:${b.c}"></i><span class="num" style="font-family:var(--f-mono);font-size:13px;min-width:92px">${t}</span>${b.name}</div>`}).join('');
+
+const fmtH=m=>unit==='cm'?(m*100).toFixed(1):(m*39.3701).toFixed(1);
+function compute(tc,tf,hGiven){
+  if(!(tc>0))return null;
+  const h=hGiven!=null?hGiven:G*tf*tf/8;
+  if(!(h>=0))return null;
+  return {tc,tf:hGiven!=null?Math.sqrt(8*h/G):tf,h,rsi:h/tc};
+}
+function render(){
+  const r=cur||{...compute(0.21,0.52),src:'ex'};
+  const isEx=!cur;
+  $('srcTag').textContent=isEx?'Contoh, belum ada pengukuran':(r.src==='video'?'Dari video':'Input manual');
+  $('srcTag').classList.toggle('live',!isEx);
+  $('oH').textContent=fmtH(r.h);
+  $('oHu').textContent=unit+' tinggi';
+  $('oTc').textContent=r.tc.toFixed(3).replace(/^0/,'');
+  $('oRSI').textContent=r.rsi.toFixed(2);
+  $('ring').style.setProperty('--p',Math.min(100,r.rsi/3.5*100));
+  const tot=r.tc+r.tf;
+  $('barC').style.width=(r.tc/tot*100)+'%';$('barF').style.width=(r.tf/tot*100)+'%';
+  $('lC').textContent=Math.round(r.tc*1000)+' ms';$('lF').textContent=Math.round(r.tf*1000)+' ms';
+  const b=band(r.rsi);
+  $('pill').textContent=b.name;$('pill').style.background=b.c;$('pill').style.color='#fff';
+  $('note').textContent=r.tc>0.25?'Kontak > 250 ms: pantulan lambat, coba turunkan box atau fokus memantul cepat.':`RSI ${r.rsi.toFixed(2)} m/s · RSI-mod tidak dihitung (butuh force plate).`;
+  $('unitBtn').textContent='Satuan: '+unit;
+  $('bSave').disabled=isEx;
+}
+$('unitBtn').onclick=()=>{unit=unit==='cm'?'in':'cm';store.set('rsi.unit',unit);render();renderHist()};
+
+// tabs
+function tab(v){$('tabV').setAttribute('aria-selected',v);$('tabM').setAttribute('aria-selected',!v);$('paneV').hidden=!v;$('paneM').hidden=v;
+  if(v)fromVideo();else fromManual();}
+$('tabV').onclick=()=>tab(true);$('tabM').onclick=()=>tab(false);
+
+// manual
+function fromManual(){
+  const tc=parseFloat($('mTc').value)/1000;
+  const hMode=$('mMode').value==='h';
+  $('mTfL').hidden=hMode;$('mHL').hidden=!hMode;
+  const r=hMode?compute(tc,null,parseFloat($('mH').value)/100):compute(tc,parseFloat($('mTf').value)/1000);
+  cur=r?{...r,src:'manual'}:null;render();
+}
+['mTc','mTf','mH','mMode'].forEach(id=>$(id).addEventListener('input',fromManual));
+
+// video
+const vid=$('vid');
+const MARKS=[
+  {k:'contact',name:'1 · Kontak',desc:'Kaki menyentuh lantai',c:'var(--track)'},
+  {k:'takeoff',name:'2 · Take-off',desc:'Kaki lepas dari lantai',c:'#6fa0ff'},
+  {k:'land',name:'3 · Mendarat',desc:'Kaki menyentuh lantai lagi',c:'var(--good)'}
+];
+let marks={},detFps=null,url=null;
+const fps=()=>{const v=$('fps').value;return v==='auto'?(detFps||30):+v};
+const frameOf=t=>Math.round(t*fps());
+$('marks').innerHTML=MARKS.map((m,i)=>`<div class="mark"><div class="k"><span class="dot" style="background:${m.c}"></span>${m.name}</div>
+  <span class="hint">${m.desc}</span><span class="t num" id="mt_${m.k}">belum ditandai</span>
+  <div class="acts"><button class="btn primary" data-set="${m.k}">Tandai di sini (${i+1})</button><button class="btn" data-go="${m.k}" disabled>Lihat</button></div></div>`).join('');
+$('marks').addEventListener('click',e=>{
+  const s=e.target.dataset.set,g=e.target.dataset.go;
+  if(s){vid.pause();marks[s]=vid.currentTime;fromVideo()}
+  if(g&&marks[g]!=null){vid.pause();vid.currentTime=marks[g]}
+});
+function fromVideo(){
+  const sl=+$('slow').value;
+  MARKS.forEach(m=>{const t=marks[m.k];$('mt_'+m.k).textContent=t==null?'belum ditandai':`${t.toFixed(3)} s · frame ${frameOf(t)}`;
+    document.querySelector(`[data-go="${m.k}"]`).disabled=t==null});
+  drawTl();
+  const {contact:a,takeoff:b,land:c}=marks;let err='';
+  if(a!=null&&b!=null&&b<=a)err='Take-off harus setelah kontak.';
+  else if(b!=null&&c!=null&&c<=b)err='Mendarat harus setelah take-off.';
+  $('vErr').textContent=err;
+  if(!err&&a!=null&&b!=null&&c!=null){const r=compute((b-a)/sl,(c-b)/sl);cur=r?{...r,src:'video'}:null}
+  else cur=null;
+  render();
+}
+function drawTl(){
+  const d=vid.duration||1;let h='';
+  const {contact:a,takeoff:b,land:c}=marks;
+  if(a!=null&&b!=null&&b>a)h+=`<span class="seg" style="left:${a/d*100}%;width:${(b-a)/d*100}%;background:var(--track)"></span>`;
+  if(b!=null&&c!=null&&c>b)h+=`<span class="seg" style="left:${b/d*100}%;width:${(c-b)/d*100}%;background:#6fa0ff"></span>`;
+  MARKS.forEach(m=>{if(marks[m.k]!=null)h+=`<span style="left:${marks[m.k]/d*100}%;background:${m.c}"></span>`});
+  h+=`<span style="left:${vid.currentTime/d*100}%;background:var(--ink);width:2px"></span>`;
+  $('tl').innerHTML=h;
+}
+function load(f){
+  if(!f||!f.type.startsWith('video'))return;
+  if(url)URL.revokeObjectURL(url);
+  url=URL.createObjectURL(f);vid.src=url;marks={};detFps=null;
+  $('drop').hidden=true;$('bench').hidden=false;
+  $('fpsHint').textContent='Putar video sebentar agar frame rate terdeteksi otomatis.';
+  fromVideo();
+}
+$('file').onchange=e=>load(e.target.files[0]);
+const drop=$('drop');
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});
+drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');load(e.dataTransfer.files[0])});
+$('bNew').onclick=()=>{vid.pause();$('file').value='';$('file').click()};
+$('bReset').onclick=()=>{marks={};fromVideo()};
+
+function step(n){vid.pause();const f=fps();const t=Math.max(0,Math.min(vid.duration||0,(Math.round(vid.currentTime*f)+n)/f+0.0001));vid.currentTime=t}
+$('bBack').onclick=()=>step(-1);$('bFwd').onclick=()=>step(1);
+$('bBack10').onclick=()=>step(-10);$('bFwd10').onclick=()=>step(10);
+$('bPlay').onclick=()=>vid.paused?vid.play():vid.pause();
+vid.onplay=()=>$('bPlay').textContent='Jeda';vid.onpause=()=>$('bPlay').textContent='Putar';
+$('rate').onchange=()=>vid.playbackRate=+$('rate').value;
+vid.onloadedmetadata=()=>{vid.playbackRate=+$('rate').value;vid.currentTime=0.0001;tick()};
+['fps','slow'].forEach(id=>$(id).addEventListener('change',fromVideo));
+$('scrub').oninput=()=>{vid.pause();vid.currentTime=$('scrub').value/1000*(vid.duration||0)};
+function tick(){
+  const d=vid.duration||0;
+  $('tNow').textContent=`${vid.currentTime.toFixed(3)} s · frame ${frameOf(vid.currentTime)}`;
+  if(d)$('scrub').value=vid.currentTime/d*1000;
+  drawTl();
+}
+vid.addEventListener('timeupdate',tick);vid.addEventListener('seeked',tick);
+
+// fps detection from presented frames
+if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
+  let last=null,deltas=[];
+  const cb=(now,meta)=>{
+    if(!vid.paused&&last!=null){const dt=meta.mediaTime-last;if(dt>0.0015&&dt<0.2)deltas.push(dt)}
+    last=meta.mediaTime;
+    if(deltas.length>=12){
+      const s=[...deltas].sort((x,y)=>x-y),med=s[Math.floor(s.length/4)];
+      const std=[24,25,30,48,50,60,90,120,240].reduce((p,c)=>Math.abs(c-1/med)<Math.abs(p-1/med)?c:p);
+      detFps=std;deltas=[];
+      $('fpsHint').textContent=`Frame rate terdeteksi sekitar ${std} fps${$('fps').value==='auto'?' (dipakai)':', pilih "Otomatis" untuk memakainya'}.`;
+      if($('fps').value==='auto')fromVideo();
+    }
+    vid.requestVideoFrameCallback(cb);
+  };
+  vid.requestVideoFrameCallback(cb);
+}
+
+document.addEventListener('keydown',e=>{
+  if($('bench').hidden||$('paneV').hidden||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+  if(e.key===','){step(-1);e.preventDefault()}
+  else if(e.key==='.'){step(1);e.preventDefault()}
+  else if(e.key===' '){vid.paused?vid.play():vid.pause();e.preventDefault()}
+  else if(['1','2','3'].includes(e.key)){vid.pause();marks[MARKS[+e.key-1].k]=vid.currentTime;fromVideo()}
+});
+
+// history
+let hist=store.get('rsi.hist',[]);
+function renderHist(){
+  const tb=$('hist');
+  if(!hist.length){tb.innerHTML=`<tr><td colspan="8" class="empty">Belum ada pengukuran tersimpan. Ukur satu lompatan, lalu tekan <b>Simpan ke riwayat</b>.</td></tr>`;return}
+  tb.innerHTML=hist.map((r,i)=>{const b=band(r.rsi);const d=new Date(r.at);
+    return `<tr><td>${d.toLocaleDateString('id-ID',{day:'numeric',month:'short'})} ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td>
+    <td>${esc(r.name||'–')}${r.note?` <span class="hint">· ${esc(r.note)}</span>`:''}</td><td class="n">${r.box??'–'}</td>
+    <td class="n">${Math.round(r.tc*1000)} ms</td><td class="n">${fmtH(r.h)} ${unit}</td><td class="n"><b>${r.rsi.toFixed(2)}</b></td>
+    <td><span class="chip" style="background:${b.c}">${b.name}</span></td><td><button class="x" data-del="${i}" aria-label="Hapus baris">×</button></td></tr>`}).join('');
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+$('hist').addEventListener('click',e=>{const i=e.target.dataset.del;if(i!=null){hist.splice(+i,1);store.set('rsi.hist',hist);renderHist()}});
+$('bSave').onclick=()=>{
+  if(!cur)return;
+  const box=parseFloat($('sBox').value);
+  hist.unshift({at:Date.now(),name:$('sName').value.trim(),note:$('sNote').value.trim(),box:isNaN(box)?null:box,tc:cur.tc,tf:cur.tf,h:cur.h,rsi:cur.rsi,src:cur.src});
+  store.set('rsi.hist',hist);store.set('rsi.name',$('sName').value.trim());renderHist();
+  $('saveMsg').textContent=`Tersimpan: RSI ${cur.rsi.toFixed(2)}`;setTimeout(()=>$('saveMsg').textContent='',2500);
+};
+$('sName').value=store.get('rsi.name','');
+let clearArm=false;
+$('bClear').onclick=()=>{
+  if(!hist.length)return;
+  if(!clearArm){clearArm=true;$('bClear').textContent='Yakin? Tekan lagi';setTimeout(()=>{clearArm=false;$('bClear').textContent='Hapus semua'},3000);return}
+  hist=[];store.set('rsi.hist',hist);renderHist();clearArm=false;$('bClear').textContent='Hapus semua';
+};
+$('bCsv').onclick=()=>{
+  const rows=[['waktu','atlet','catatan','box_cm','kontak_s','layang_s','tinggi_cm','rsi','sumber']]
+    .concat(hist.map(r=>[new Date(r.at).toISOString(),r.name,r.note,r.box??'',r.tc.toFixed(3),r.tf.toFixed(3),(r.h*100).toFixed(1),r.rsi.toFixed(3),r.src]));
+  const csv=rows.map(r=>r.map(v=>/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(',')).join('\n');
+  const ta=$('csvOut');ta.value=csv;
+  const done=()=>{$('bCsv').textContent='CSV disalin';setTimeout(()=>$('bCsv').textContent='Salin CSV',2000)};
+  const fallback=()=>{ta.hidden=false;ta.focus();ta.select();$('bCsv').textContent='Salin teks di bawah'};
+  try{navigator.clipboard.writeText(csv).then(()=>{ta.hidden=true;done()},fallback)}catch(e){fallback()}
+};
+
+render();renderHist();
+})();
+</script>
+</body>
+</html>
